@@ -16,6 +16,11 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
             throw new ApiError(400, 'Email, password, name, and role are required');
         }
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            throw new ApiError(400, 'Invalid email format');
+        }
+
         if (!['candidate', 'employer'].includes(role)) {
             throw new ApiError(400, 'Role must be either "candidate" or "employer"');
         }

@@ -21,6 +21,11 @@ export const generateAssessment = async (
             throw new ApiError(400, 'Skill name and difficulty are required');
         }
 
+        const validDifficulties = ['Beginner', 'Mid-Level', 'Advanced'];
+        if (!validDifficulties.includes(difficulty)) {
+            throw new ApiError(400, 'Invalid difficulty level');
+        }
+
         // Get skill from database
         const { data: skill, error: skillError } = await supabase
             .from('skills')

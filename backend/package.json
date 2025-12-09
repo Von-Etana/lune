@@ -72,6 +72,9 @@
                 "lines": 70,
                 "statements": 70
             }
-        }
+        },
+        "setupFiles": [
+            "dotenv/config"
+        ]
     }
 }

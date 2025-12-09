@@ -17,20 +17,83 @@ jest.mock('../../services/geminiService', () => ({
             }
         ]
     }),
-    evaluateAssessment: jest.fn().mockResolvedValue({
+    evaluateCodeSubmission: jest.fn().mockResolvedValue({
         score: 85,
         passed: true,
         feedback: 'Great work!',
         cheatingDetected: false
+    }),
+    generateCheatingAnalysis: jest.fn().mockResolvedValue({
+        isCheating: false,
+        reason: null
     })
 }));
 
 jest.mock('../../middleware/auth', () => ({
-    authenticateToken: (req: any, res: any, next: any) => {
+    authenticate: (req: any, res: any, next: any) => {
         req.user = { id: 'user-123', email: 'test@example.com' };
+        next();
+    },
+    requireRole: (roles: string[]) => (req: any, res: any, next: any) => {
         next();
     }
 }));
+
+jest.mock('../../services/supabaseService', () => {
+    return {
+        supabase: {
+            from: jest.fn().mockImplementation((table) => {
+                const mockChain = {
+                    select: jest.fn().mockReturnThis(),
+                    eq: jest.fn().mockReturnThis(),
+                    single: jest.fn(),
+                    insert: jest.fn().mockReturnThis(),
+                    order: jest.fn().mockReturnThis()
+                };
+
+                // Specific responses based on table
+                if (table === 'skills') {
+                    mockChain.single.mockResolvedValue({
+                        data: { id: 'skill-123', name: 'React', category: 'frontend' },
+                        error: null
+                    });
+                } else if (table === 'assessments') {
+                    mockChain.single.mockResolvedValue({
+                        data: {
+                            id: 'assessment-123',
+                            title: 'React Assessment',
+                            description: 'Desc',
+                            starter_code: 'code',
+                            theory_questions: [],
+                            skills: { name: 'React' }
+                        },
+                        error: null
+                    });
+                } else if (table === 'assessment_submissions') {
+                    mockChain.single.mockResolvedValue({
+                        data: {
+                            id: 'submission-123',
+                            score: 85,
+                            passed: true
+                        },
+                        error: null
+                    });
+                }
+
+                // Default for lists (history)
+                if (table === 'assessment_submissions') {
+                    // For getAssessmentHistory which calls order at the end
+                    mockChain.order.mockResolvedValue({
+                        data: [{ id: 'submission-123' }],
+                        error: null
+                    });
+                }
+
+                return mockChain;
+            })
+        }
+    };
+});
 
 const app = express();
 app.use(express.json());
@@ -95,10 +158,10 @@ describe('Assessment API Integration Tests', () => {
                 });
 
             expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('result');
-            expect(response.body.result).toHaveProperty('score');
-            expect(response.body.result).toHaveProperty('passed');
-            expect(response.body.result).toHaveProperty('feedback');
+            expect(response.body).toHaveProperty('submission');
+            expect(response.body.submission).toHaveProperty('score');
+            expect(response.body.submission).toHaveProperty('passed');
+            expect(response.body.submission).toHaveProperty('feedback');
         });
 
         it('should reject submission without assessment ID', async () => {
@@ -121,8 +184,8 @@ describe('Assessment API Integration Tests', () => {
                 .set('Authorization', 'Bearer token123');
 
             expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('assessments');
-            expect(Array.isArray(response.body.assessments)).toBe(true);
+            expect(response.body).toHaveProperty('submissions');
+            expect(Array.isArray(response.body.submissions)).toBe(true);
         });
     });
 });

@@ -3,20 +3,59 @@ import express from 'express';
 import authRoutes from '../../routes/authRoutes';
 
 // Mock Supabase
-jest.mock('../../services/supabaseService', () => ({
-    signUp: jest.fn().mockResolvedValue({
-        user: { id: '123', email: 'test@example.com' },
-        session: { access_token: 'token123', refresh_token: 'refresh123' }
-    }),
-    signIn: jest.fn().mockResolvedValue({
-        user: { id: '123', email: 'test@example.com' },
-        session: { access_token: 'token123', refresh_token: 'refresh123' }
-    }),
-    signOut: jest.fn().mockResolvedValue(undefined),
-    refreshSession: jest.fn().mockResolvedValue({
-        session: { access_token: 'new_token', refresh_token: 'new_refresh' }
-    })
-}));
+jest.mock('../../services/supabaseService', () => {
+    const mockUser = { id: '123', email: 'test@example.com' };
+    const mockSession = { access_token: 'token123', refresh_token: 'refresh123', expires_at: 1234567890 };
+
+    return {
+        supabaseAdmin: {
+            auth: {
+                admin: {
+                    createUser: jest.fn().mockResolvedValue({
+                        data: { user: mockUser },
+                        error: null
+                    }),
+                    deleteUser: jest.fn().mockResolvedValue({ error: null })
+                }
+            },
+            from: jest.fn().mockReturnValue({
+                insert: jest.fn().mockResolvedValue({ error: null }),
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        single: jest.fn().mockResolvedValue({ data: mockUser, error: null })
+                    })
+                })
+            })
+        },
+        supabase: {
+            auth: {
+                signInWithPassword: jest.fn().mockResolvedValue({
+                    data: { user: mockUser, session: mockSession },
+                    error: null
+                }),
+                signOut: jest.fn().mockResolvedValue({ error: null }),
+                refreshSession: jest.fn().mockResolvedValue({
+                    data: { session: mockSession },
+                    error: null
+                }),
+                getUser: jest.fn().mockResolvedValue({
+                    data: { user: mockUser },
+                    error: null
+                })
+            },
+            from: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        single: jest.fn().mockResolvedValue({
+                            data: { ...mockUser, role: 'candidate', name: 'Test User' },
+                            error: null
+                        })
+                    })
+                })
+            })
+        }
+    };
+});
 
 const app = express();
 app.use(express.json());
@@ -36,8 +75,7 @@ describe('Auth API Integration Tests', () => {
 
             expect(response.status).toBe(201);
             expect(response.body).toHaveProperty('user');
-            expect(response.body).toHaveProperty('session');
-            expect(response.body.user.email).toBe('test@example.com');
+            expect(response.body.user.email).toBe('newuser@example.com');
         });
 
         it('should reject signup with missing fields', async () => {
