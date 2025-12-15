@@ -2,7 +2,7 @@ services:
   - type: web
     name: lune-backend
     env: node
-    root: backend
+    rootDir: backend
     plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
