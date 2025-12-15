@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: lune-backend
+    env: node
+    root: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: SUPABASE_URL
+        sync: false  # Set in Render dashboard
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SEED_PHRASE
+        sync: false
+      - key: PWR_CHAIN_RPC_URL
+        value: https://rpc.pwrlabs.io
+      - key: ALLOWED_ORIGINS
+        sync: false  # Set your frontend URL
+    autoDeploy: true
