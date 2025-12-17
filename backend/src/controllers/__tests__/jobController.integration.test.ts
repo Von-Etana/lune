@@ -63,6 +63,22 @@ jest.mock('../../services/supabaseService', () => {
                     });
                 }
 
+                // Mock for candidate_profiles (needed by getJobs for candidates)
+                if (table === 'candidate_profiles') {
+                    mockChain.single.mockResolvedValue({
+                        data: { user_id: 'user-123', title: 'Developer', years_of_experience: 3 },
+                        error: null
+                    });
+                }
+
+                // Mock for certifications (needed by getJobs for candidates)
+                if (table === 'certifications') {
+                    mockChain.eq.mockResolvedValue({
+                        data: [{ id: 'cert-1', skill_id: 'skill-1', score: 85, skills: { name: 'React' } }],
+                        error: null
+                    });
+                }
+
                 return mockChain;
             })
         }
