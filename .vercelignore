@@ -1,0 +1,15 @@
+# Ignore API folder - backend is deployed separately on Render
+api/
+
+# Ignore backend folder
+backend/
+
+# Ignore test files
+**/*.test.ts
+**/__tests__/
+
+# Ignore config files that shouldn't be deployed
+.env
+.env.local
+*.md
+!README.md

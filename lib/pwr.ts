@@ -1,18 +1,25 @@
-import PWRWallet from '@pwrjs/core/wallet';
+// Dynamic import to prevent build errors when @pwrjs/core is not available
+// This library is only needed for backend/serverless certificate minting
 
 const PWR_CHAIN_RPC_URL = process.env.PWR_CHAIN_RPC_URL || 'https://rpc.pwrlabs.io';
 const SEED_PHRASE = process.env.SEED_PHRASE;
 
 // Lazy initialization for serverless
 let pwrWallet: any = null;
+let PWRWallet: any = null;
 
-const getWallet = (): any | null => {
+const getWallet = async (): Promise<any | null> => {
     if (!pwrWallet && SEED_PHRASE) {
         try {
+            // Dynamic import to avoid build errors
+            if (!PWRWallet) {
+                const pwrModule = await import('@pwrjs/core/wallet');
+                PWRWallet = pwrModule.default;
+            }
             pwrWallet = PWRWallet.fromSeedPhrase(SEED_PHRASE);
             console.log('PWRCHAIN wallet initialized successfully');
         } catch (error) {
-            console.error('Failed to initialize PWRCHAIN wallet:', error);
+            console.warn('PWR wallet module not available, using mock:', error);
         }
     }
     return pwrWallet;
@@ -35,7 +42,7 @@ export const mintCertificate = async (
     try {
         console.log('Minting certificate on PWRCHAIN', { certificateData });
 
-        const wallet = getWallet();
+        const wallet = await getWallet();
         if (!wallet) {
             console.warn('PWR wallet not initialized, using fallback');
             return await mockMintCertificate(certificateData);
@@ -142,7 +149,7 @@ export const verifyCertificate = async (
  */
 export const getWalletBalance = async (): Promise<number> => {
     try {
-        const wallet = getWallet();
+        const wallet = await getWallet();
         if (!wallet) {
             return 0;
         }
