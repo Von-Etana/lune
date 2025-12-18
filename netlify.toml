@@ -1,9 +1,34 @@
+# =============================================================================
+# NETLIFY CONFIGURATION FOR LUNE
+# =============================================================================
+#
+# IMPORTANT: Configure these environment variables in Netlify Dashboard
+# Go to: Site settings → Environment variables
+#
+# Required Environment Variables:
+# --------------------------------
+# VITE_SUPABASE_URL        = https://yrnulossvinxpifoukhm.supabase.co
+# VITE_SUPABASE_ANON_KEY   = (your Supabase anon key from Supabase Dashboard)
+# VITE_API_URL             = https://lune-backend.onrender.com/api
+#
+# Optional Environment Variables:
+# --------------------------------
+# VITE_GEMINI_API_KEY      = (your Gemini API key for AI features)
+#
+# After adding variables, trigger a redeploy:
+# Deploys → Trigger deploy → Deploy site
+# =============================================================================
+
 [build]
   command = "npm run build"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
+  # Skip secrets scanning for example files and documentation
+  # These contain placeholder values, not real secrets
+  SECRETS_SCAN_OMIT_PATHS = "env.example,backend/env.example,SETUP_GUIDE.md,DEPLOYMENT_GUIDE.md,CONFIGURATION_STATUS.md,README.md,backend/README.md,backend/API_DOCUMENTATION.md,render.yaml,setup.ps1"
+  SECRETS_SCAN_OMIT_KEYS = "PORT,NODE_ENV,PWR_CHAIN_RPC_URL,PWR_CHAIN_ID,ALLOWED_ORIGINS,RATE_LIMIT_WINDOW_MS"
 
 # SPA redirect for client-side routing
 [[redirects]]
