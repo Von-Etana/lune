@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
-import { Search, Play, Award, MapPin, CheckCircle, Sliders, FileText, ShieldCheck, XCircle, Plus, Sparkles, Briefcase, GraduationCap, Filter, Building2, DollarSign, Globe, Clock, Trash2, Mail, User, X, ExternalLink, Copy, Loader } from 'lucide-react';
+import { Search, Play, Award, MapPin, CheckCircle, Sliders, FileText, ShieldCheck, XCircle, Plus, Sparkles, Briefcase, GraduationCap, Filter, Building2, DollarSign, Globe, Clock, Trash2, Mail, User, X, ExternalLink, Copy, Loader, ChevronDown } from 'lucide-react';
 import { getCertificateDetails } from '../services/pwrService';
 import { matchCandidatesToJob } from '../services/geminiService';
 import { CertificateDetails, CandidateProfile, Job } from '../types';
 import { useToast } from '../lib/toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface EmployerDashboardProps {
    onLogout: () => void;
@@ -233,346 +233,429 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
       return 'text-orange-600';
    };
 
+   // Animation Variants
+   const containerVariants = {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+   };
+
+   const itemVariants = {
+      hidden: { opacity: 0, y: 10 },
+      visible: { opacity: 1, y: 0 }
+   };
+
    return (
       <div className="min-h-screen bg-cream font-sans relative">
          {/* Independent Verification Modal (Global) */}
-         {showVerification && (
-            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                  <div className="bg-teal p-6 text-white flex justify-between items-start">
-                     <div>
-                        <h3 className="text-xl font-bold">Verify Certificate</h3>
-                        <p className="text-teal-200 text-sm">Powered by PWR Chain</p>
-                     </div>
-                     <button onClick={() => setShowVerification(false)} className="text-teal-200 hover:text-white"><XCircle /></button>
-                  </div>
-                  <div className="p-6">
-                     <label className="block text-sm font-bold text-gray-700 mb-2">Transaction Hash</label>
-                     <div className="flex gap-2 mb-6">
-                        <input
-                           type="text"
-                           value={verifyHash}
-                           onChange={(e) => setVerifyHash(e.target.value)}
-                           placeholder="0x..."
-                           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
-                        />
-                        <button
-                           onClick={() => handleVerify(verifyHash)}
-                           className="bg-black text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
-                        >
-                           {verifyStatus === 'loading' ? '...' : 'Check'}
-                        </button>
-                     </div>
-
-                     {verifyStatus === 'error' && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
-                           Invalid Certificate Hash or Not Found on Chain
+         <AnimatePresence>
+            {showVerification && (
+               <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm"
+               >
+                  <motion.div
+                     initial={{ scale: 0.95, opacity: 0 }}
+                     animate={{ scale: 1, opacity: 1 }}
+                     exit={{ scale: 0.95, opacity: 0 }}
+                     className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+                  >
+                     <div className="bg-teal p-6 text-white flex justify-between items-start">
+                        <div>
+                           <h3 className="text-xl font-bold">Verify Certificate</h3>
+                           <p className="text-teal-200 text-sm">Powered by PWR Chain</p>
                         </div>
-                     )}
-
-                     {verifyResult && (
-                        <div className="bg-green-50 border border-green-100 rounded-xl p-4 animate-in slide-in-from-bottom-2">
-                           <div className="flex items-center gap-2 text-green-700 font-bold mb-3">
-                              <ShieldCheck size={18} />
-                              <span>Valid Certificate</span>
-                           </div>
-                           <div className="space-y-2 text-sm">
-                              <div className="flex justify-between"><span className="text-gray-500">Candidate:</span> <span className="font-semibold">{verifyResult.candidateName}</span></div>
-                              <div className="flex justify-between"><span className="text-gray-500">Skill:</span> <span className="font-semibold">{verifyResult.skill}</span></div>
-                              <div className="flex justify-between"><span className="text-gray-500">Score:</span> <span className="font-semibold text-green-600">{verifyResult.score}%</span></div>
-                              <div className="flex justify-between"><span className="text-gray-500">Date:</span> <span className="font-semibold">{new Date(verifyResult.timestamp).toLocaleDateString()}</span></div>
-                              <div className="text-xs text-gray-400 mt-2 border-t pt-2 font-mono">{verifyResult.hash.substring(0, 16)}...</div>
-                           </div>
+                        <button onClick={() => setShowVerification(false)} className="text-teal-200 hover:text-white"><XCircle /></button>
+                     </div>
+                     <div className="p-6">
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Transaction Hash</label>
+                        <div className="flex gap-2 mb-6">
+                           <input
+                              type="text"
+                              value={verifyHash}
+                              onChange={(e) => setVerifyHash(e.target.value)}
+                              placeholder="0x..."
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                           />
+                           <button
+                              onClick={() => handleVerify(verifyHash)}
+                              className="bg-black text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
+                           >
+                              {verifyStatus === 'loading' ? '...' : 'Check'}
+                           </button>
                         </div>
-                     )}
-                  </div>
-               </div>
-            </div>
-         )}
+
+                        {verifyStatus === 'error' && (
+                           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
+                              Invalid Certificate Hash or Not Found on Chain
+                           </motion.div>
+                        )}
+
+                        {verifyResult && (
+                           <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="bg-green-50 border border-green-100 rounded-xl p-4"
+                           >
+                              <div className="flex items-center gap-2 text-green-700 font-bold mb-3">
+                                 <ShieldCheck size={18} />
+                                 <span>Valid Certificate</span>
+                              </div>
+                              <div className="space-y-2 text-sm">
+                                 <div className="flex justify-between"><span className="text-gray-500">Candidate:</span> <span className="font-semibold">{verifyResult.candidateName}</span></div>
+                                 <div className="flex justify-between"><span className="text-gray-500">Skill:</span> <span className="font-semibold">{verifyResult.skill}</span></div>
+                                 <div className="flex justify-between"><span className="text-gray-500">Score:</span> <span className="font-semibold text-green-600">{verifyResult.score}%</span></div>
+                                 <div className="flex justify-between"><span className="text-gray-500">Date:</span> <span className="font-semibold">{new Date(verifyResult.timestamp).toLocaleDateString()}</span></div>
+                                 <div className="text-xs text-gray-400 mt-2 border-t pt-2 font-mono">{verifyResult.hash.substring(0, 16)}...</div>
+                              </div>
+                           </motion.div>
+                        )}
+                     </div>
+                  </motion.div>
+               </motion.div>
+            )}
+         </AnimatePresence>
 
          {/* Candidate Profile Modal */}
-         {viewingCandidate && (
-            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-md">
-               <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+         <AnimatePresence>
+            {viewingCandidate && (
+               <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-md"
+               >
+                  <motion.div
+                     initial={{ scale: 0.95, opacity: 0 }}
+                     animate={{ scale: 1, opacity: 1 }}
+                     exit={{ scale: 0.95, opacity: 0 }}
+                     className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                  >
 
-                  {/* Modal Header */}
-                  <div className="relative h-32 bg-gradient-to-r from-slate-800 to-slate-900 flex-shrink-0">
-                     <button
-                        onClick={() => setViewingCandidate(null)}
-                        className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full transition backdrop-blur-sm z-10"
-                     >
-                        <X size={20} />
-                     </button>
+                     {/* Modal Header */}
+                     <div className="relative h-32 bg-gradient-to-r from-slate-800 to-slate-900 flex-shrink-0">
+                        <motion.button
+                           whileHover={{ scale: 1.1 }}
+                           whileTap={{ scale: 0.9 }}
+                           onClick={() => setViewingCandidate(null)}
+                           className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full transition backdrop-blur-sm z-10"
+                        >
+                           <X size={20} />
+                        </motion.button>
 
-                     {/* Background Pattern */}
-                     <div className="absolute inset-0 opacity-10">
-                        <div className="grid grid-cols-8 gap-4">
-                           {Array.from({ length: 32 }).map((_, i) => <div key={i} className="bg-white rounded-full aspect-square m-2"></div>)}
-                        </div>
-                     </div>
-                  </div>
-
-                  <div className="px-8 pb-8 flex-1 overflow-y-auto">
-                     {/* Profile Header Info */}
-                     <div className="flex flex-col md:flex-row gap-6 -mt-12 mb-8 items-start">
-                        <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gray-200 flex-shrink-0">
-                           <img src={viewingCandidate.image || `https://ui-avatars.com/api/?name=${viewingCandidate.name}`} alt={viewingCandidate.name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-1 mt-4 md:mt-12">
-                           <div className="flex justify-between items-start">
-                              <div>
-                                 <h2 className="text-2xl font-bold text-slate-900">{viewingCandidate.name}</h2>
-                                 <p className="text-slate-500 font-medium">{viewingCandidate.title}</p>
-                                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                                    <span className="flex items-center gap-1"><MapPin size={14} /> {viewingCandidate.location}</span>
-                                    <span className="flex items-center gap-1"><Briefcase size={14} /> {viewingCandidate.yearsOfExperience} Yrs Exp</span>
-                                    <span className="flex items-center gap-1"><Globe size={14} /> {viewingCandidate.preferredWorkMode}</span>
-                                 </div>
-                              </div>
-                              <div className="flex gap-2">
-                                 <button className="bg-black text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-800 flex items-center gap-2">
-                                    <Mail size={16} /> Contact
-                                 </button>
-                              </div>
+                        {/* Background Pattern */}
+                        <div className="absolute inset-0 opacity-10">
+                           <div className="grid grid-cols-8 gap-4">
+                              {Array.from({ length: 32 }).map((_, i) => <div key={i} className="bg-white rounded-full aspect-square m-2"></div>)}
                            </div>
                         </div>
                      </div>
 
-                     {/* Tabs */}
-                     <div className="flex border-b border-gray-200 mb-6">
-                        <button
-                           onClick={() => setProfileModalTab('overview')}
-                           className={`px-6 py-3 font-bold text-sm border-b-2 transition ${profileModalTab === 'overview' ? 'border-teal-500 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
-                        >
-                           Overview
-                        </button>
-                        <button
-                           onClick={() => setProfileModalTab('credentials')}
-                           className={`px-6 py-3 font-bold text-sm border-b-2 transition flex items-center gap-2 ${profileModalTab === 'credentials' ? 'border-teal-500 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
-                        >
-                           Credentials
-                           {viewingCandidate.certifications.length > 0 && (
-                              <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{viewingCandidate.certifications.length}</span>
-                           )}
-                        </button>
-                     </div>
-
-                     {/* Tab Content */}
-                     {profileModalTab === 'overview' && (
-                        <div className="grid md:grid-cols-3 gap-8 animate-in fade-in duration-300">
-                           <div className="md:col-span-2 space-y-6">
-                              <div>
-                                 <h3 className="font-bold text-slate-900 mb-2 text-sm uppercase tracking-wider">About</h3>
-                                 <p className="text-gray-600 leading-relaxed text-sm">
-                                    {viewingCandidate.bio || "No bio available."}
-                                 </p>
-                              </div>
-
-                              <div>
-                                 <h3 className="font-bold text-slate-900 mb-2 text-sm uppercase tracking-wider">Experience</h3>
-                                 <p className="text-gray-600 leading-relaxed text-sm">
-                                    {viewingCandidate.experience || "No detailed experience listed."}
-                                 </p>
-                              </div>
-
-                              {viewingCandidate.videoIntroUrl && (
+                     <div className="px-8 pb-8 flex-1 overflow-y-auto">
+                        {/* Profile Header Info */}
+                        <div className="flex flex-col md:flex-row gap-6 -mt-12 mb-8 items-start">
+                           <motion.div
+                              initial={{ y: 20, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                              className="w-24 h-24 md:w-32 md:h-32 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gray-200 flex-shrink-0"
+                           >
+                              <img src={viewingCandidate.image || `https://ui-avatars.com/api/?name=${viewingCandidate.name}`} alt={viewingCandidate.name} className="w-full h-full object-cover" />
+                           </motion.div>
+                           <div className="flex-1 mt-4 md:mt-12">
+                              <div className="flex justify-between items-start">
                                  <div>
-                                    <h3 className="font-bold text-slate-900 mb-2 text-sm uppercase tracking-wider">Video Introduction</h3>
-                                    <div className="aspect-video bg-black rounded-xl overflow-hidden relative group">
-                                       <video src={viewingCandidate.videoIntroUrl} controls className="w-full h-full object-cover" />
+                                    <h2 className="text-2xl font-bold text-slate-900">{viewingCandidate.name}</h2>
+                                    <p className="text-slate-500 font-medium">{viewingCandidate.title}</p>
+                                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                                       <span className="flex items-center gap-1"><MapPin size={14} /> {viewingCandidate.location}</span>
+                                       <span className="flex items-center gap-1"><Briefcase size={14} /> {viewingCandidate.yearsOfExperience} Yrs Exp</span>
+                                       <span className="flex items-center gap-1"><Globe size={14} /> {viewingCandidate.preferredWorkMode}</span>
                                     </div>
                                  </div>
-                              )}
-                           </div>
-
-                           <div className="bg-gray-50 p-6 rounded-xl h-fit">
-                              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                 <Sparkles size={16} className="text-teal-600" /> Verified Skills
-                              </h3>
-                              <div className="space-y-4">
-                                 {Object.entries(viewingCandidate.skills).map(([skill, score]) => (
-                                    <div key={skill}>
-                                       <div className="flex justify-between text-xs mb-1.5 font-bold">
-                                          <span className="text-slate-700">{skill}</span>
-                                          <span className={getScoreTextColor(score as number)}>{score as number}%</span>
-                                       </div>
-                                       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                          <div
-                                             className={`h-full rounded-full ${getScoreColor(score as number)}`}
-                                             style={{ width: `${score}%` }}
-                                          ></div>
-                                       </div>
-                                    </div>
-                                 ))}
+                                 <div className="flex gap-2">
+                                    <button className="bg-black text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-800 flex items-center gap-2">
+                                       <Mail size={16} /> Contact
+                                    </button>
+                                 </div>
                               </div>
                            </div>
                         </div>
-                     )}
 
-                     {profileModalTab === 'credentials' && (
-                        <div className="space-y-4 animate-in fade-in duration-300">
-                           {viewingCandidate.certifications.length === 0 ? (
-                              <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                 <ShieldCheck className="mx-auto text-gray-300 mb-3" size={48} />
-                                 <p className="text-gray-500 font-medium">No verified certificates found.</p>
-                              </div>
-                           ) : (
-                              viewingCandidate.certifications.map((hash, idx) => (
-                                 <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group">
-                                    <div className="flex items-start gap-4">
-                                       <div className="bg-teal/10 p-3 rounded-lg text-teal-700">
-                                          <Award size={24} />
-                                       </div>
-                                       <div>
-                                          <h4 className="font-bold text-slate-900">PWR Chain Certificate of Competence</h4>
-                                          <p className="text-xs text-gray-500 font-mono mt-1 flex items-center gap-1">
-                                             {hash.substring(0, 10)}...{hash.substring(hash.length - 8)}
-                                             <button className="hover:text-teal-600" onClick={() => navigator.clipboard.writeText(hash)} title="Copy Hash"><Copy size={10} /></button>
-                                          </p>
-                                       </div>
+                        {/* Tabs */}
+                        <div className="flex border-b border-gray-200 mb-6">
+                           <button
+                              onClick={() => setProfileModalTab('overview')}
+                              className={`px-6 py-3 font-bold text-sm border-b-2 transition ${profileModalTab === 'overview' ? 'border-teal-500 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+                           >
+                              Overview
+                           </button>
+                           <button
+                              onClick={() => setProfileModalTab('credentials')}
+                              className={`px-6 py-3 font-bold text-sm border-b-2 transition flex items-center gap-2 ${profileModalTab === 'credentials' ? 'border-teal-500 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+                           >
+                              Credentials
+                              {viewingCandidate.certifications.length > 0 && (
+                                 <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{viewingCandidate.certifications.length}</span>
+                              )}
+                           </button>
+                        </div>
+
+                        {/* Tab Content */}
+                        <AnimatePresence mode="wait">
+                           {profileModalTab === 'overview' && (
+                              <motion.div
+                                 key="overview"
+                                 initial={{ opacity: 0, y: 10 }}
+                                 animate={{ opacity: 1, y: 0 }}
+                                 exit={{ opacity: 0, y: -10 }}
+                                 className="grid md:grid-cols-3 gap-8"
+                              >
+                                 <div className="md:col-span-2 space-y-6">
+                                    <div>
+                                       <h3 className="font-bold text-slate-900 mb-2 text-sm uppercase tracking-wider">About</h3>
+                                       <p className="text-gray-600 leading-relaxed text-sm">
+                                          {viewingCandidate.bio || "No bio available."}
+                                       </p>
                                     </div>
-                                    <div className="flex gap-2 w-full md:w-auto">
-                                       <button className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-50 flex items-center gap-2 flex-1 justify-center">
-                                          <ExternalLink size={14} /> View on Chain
-                                       </button>
-                                       <button
-                                          onClick={() => {
-                                             setVerifyHash(hash);
-                                             setShowVerification(true);
-                                          }}
-                                          className="px-4 py-2 bg-teal text-white rounded-lg text-sm font-bold hover:bg-teal-700 flex items-center gap-2 flex-1 justify-center shadow-sm"
-                                       >
-                                          <ShieldCheck size={14} /> Verify
-                                       </button>
+
+                                    <div>
+                                       <h3 className="font-bold text-slate-900 mb-2 text-sm uppercase tracking-wider">Experience</h3>
+                                       <p className="text-gray-600 leading-relaxed text-sm">
+                                          {viewingCandidate.experience || "No detailed experience listed."}
+                                       </p>
+                                    </div>
+
+                                    {viewingCandidate.videoIntroUrl && (
+                                       <div>
+                                          <h3 className="font-bold text-slate-900 mb-2 text-sm uppercase tracking-wider">Video Introduction</h3>
+                                          <div className="aspect-video bg-black rounded-xl overflow-hidden relative group">
+                                             <video src={viewingCandidate.videoIntroUrl} controls className="w-full h-full object-cover" />
+                                          </div>
+                                       </div>
+                                    )}
+                                 </div>
+
+                                 <div className="bg-gray-50 p-6 rounded-xl h-fit">
+                                    <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                       <Sparkles size={16} className="text-teal-600" /> Verified Skills
+                                    </h3>
+                                    <div className="space-y-4">
+                                       {Object.entries(viewingCandidate.skills).map(([skill, score]) => (
+                                          <div key={skill}>
+                                             <div className="flex justify-between text-xs mb-1.5 font-bold">
+                                                <span className="text-slate-700">{skill}</span>
+                                                <span className={getScoreTextColor(score as number)}>{score as number}%</span>
+                                             </div>
+                                             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                                <motion.div
+                                                   initial={{ width: 0 }}
+                                                   animate={{ width: `${score}%` }}
+                                                   transition={{ duration: 0.8, ease: "easeOut" }}
+                                                   className={`h-full rounded-full ${getScoreColor(score as number)}`}
+                                                ></motion.div>
+                                             </div>
+                                          </div>
+                                       ))}
                                     </div>
                                  </div>
-                              ))
+                              </motion.div>
                            )}
 
-                           <div className="mt-8 bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 items-start">
-                              <div className="bg-white p-1.5 rounded-full shadow-sm text-blue-600 mt-0.5">
-                                 <ShieldCheck size={16} />
-                              </div>
-                              <div>
-                                 <h5 className="text-blue-900 font-bold text-sm">Immutable Verification</h5>
-                                 <p className="text-blue-800/80 text-xs mt-1">
-                                    These certificates are minted directly on the PWR Chain. They are tamper-proof and serve as mathematical proof of the candidate's skill assessment performance.
-                                 </p>
-                              </div>
-                           </div>
-                        </div>
-                     )}
-                  </div>
-               </div>
-            </div>
-         )}
+                           {profileModalTab === 'credentials' && (
+                              <motion.div
+                                 key="credentials"
+                                 initial={{ opacity: 0, y: 10 }}
+                                 animate={{ opacity: 1, y: 0 }}
+                                 exit={{ opacity: 0, y: -10 }}
+                                 className="space-y-4"
+                              >
+                                 {viewingCandidate.certifications.length === 0 ? (
+                                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                       <ShieldCheck className="mx-auto text-gray-300 mb-3" size={48} />
+                                       <p className="text-gray-500 font-medium">No verified certificates found.</p>
+                                    </div>
+                                 ) : (
+                                    viewingCandidate.certifications.map((hash, idx) => (
+                                       <motion.div
+                                          key={idx}
+                                          initial={{ opacity: 0, x: -10 }}
+                                          animate={{ opacity: 1, x: 0 }}
+                                          transition={{ delay: idx * 0.1 }}
+                                          className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group"
+                                       >
+                                          <div className="flex items-start gap-4">
+                                             <div className="bg-teal/10 p-3 rounded-lg text-teal-700">
+                                                <Award size={24} />
+                                             </div>
+                                             <div>
+                                                <h4 className="font-bold text-slate-900">PWR Chain Certificate of Competence</h4>
+                                                <p className="text-xs text-gray-500 font-mono mt-1 flex items-center gap-1">
+                                                   {hash.substring(0, 10)}...{hash.substring(hash.length - 8)}
+                                                   <button className="hover:text-teal-600" onClick={() => navigator.clipboard.writeText(hash)} title="Copy Hash"><Copy size={10} /></button>
+                                                </p>
+                                             </div>
+                                          </div>
+                                          <div className="flex gap-2 w-full md:w-auto">
+                                             <button className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-50 flex items-center gap-2 flex-1 justify-center">
+                                                <ExternalLink size={14} /> View on Chain
+                                             </button>
+                                             <button
+                                                onClick={() => {
+                                                   setVerifyHash(hash);
+                                                   setShowVerification(true);
+                                                }}
+                                                className="px-4 py-2 bg-teal text-white rounded-lg text-sm font-bold hover:bg-teal-700 flex items-center gap-2 flex-1 justify-center shadow-sm"
+                                             >
+                                                <ShieldCheck size={14} /> Verify
+                                             </button>
+                                          </div>
+                                       </motion.div>
+                                    ))
+                                 )}
+
+                                 <div className="mt-8 bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 items-start">
+                                    <div className="bg-white p-1.5 rounded-full shadow-sm text-blue-600 mt-0.5">
+                                       <ShieldCheck size={16} />
+                                    </div>
+                                    <div>
+                                       <h5 className="text-blue-900 font-bold text-sm">Immutable Verification</h5>
+                                       <p className="text-blue-800/80 text-xs mt-1">
+                                          These certificates are minted directly on the PWR Chain. They are tamper-proof and serve as mathematical proof of the candidate's skill assessment performance.
+                                       </p>
+                                    </div>
+                                 </div>
+                              </motion.div>
+                           )}
+                        </AnimatePresence>
+                     </div>
+                  </motion.div>
+               </motion.div>
+            )}
+         </AnimatePresence>
 
          {/* Post Job Modal */}
-         {showPostJob && (
-            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-               <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                  <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                     <div>
-                        <h3 className="text-xl font-bold text-slate-900">Post New Job</h3>
-                        <p className="text-sm text-slate-500">Create a listing to find the perfect candidate</p>
-                     </div>
-                     <button onClick={() => setShowPostJob(false)} className="text-gray-400 hover:text-gray-600"><XCircle /></button>
-                  </div>
-
-                  <div className="p-6 space-y-5 overflow-y-auto">
-                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Job Title</label>
-                        <input
-                           type="text"
-                           value={jobTitle}
-                           onChange={(e) => setJobTitle(e.target.value)}
-                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
-                           placeholder="e.g. Senior React Developer"
-                        />
-                     </div>
-
-                     {/* ... (Rest of the Post Job Form remains unchanged) ... */}
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+         <AnimatePresence>
+            {showPostJob && (
+               <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm"
+               >
+                  <motion.div
+                     initial={{ scale: 0.95, opacity: 0 }}
+                     animate={{ scale: 1, opacity: 1 }}
+                     exit={{ scale: 0.95, opacity: 0 }}
+                     className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                  >
+                     <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                         <div>
-                           <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><Building2 size={14} /> Company</label>
+                           <h3 className="text-xl font-bold text-slate-900">Post New Job</h3>
+                           <p className="text-sm text-slate-500">Create a listing to find the perfect candidate</p>
+                        </div>
+                        <button onClick={() => setShowPostJob(false)} className="text-gray-400 hover:text-gray-600"><XCircle /></button>
+                     </div>
+
+                     <div className="p-6 space-y-5 overflow-y-auto">
+                        <div>
+                           <label className="block text-sm font-bold text-gray-700 mb-1">Job Title</label>
                            <input
                               type="text"
-                              value={jobCompany}
-                              onChange={(e) => setJobCompany(e.target.value)}
+                              value={jobTitle}
+                              onChange={(e) => setJobTitle(e.target.value)}
                               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
-                              placeholder="Your Company Name"
+                              placeholder="e.g. Senior React Developer"
                            />
                         </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><Building2 size={14} /> Company</label>
+                              <input
+                                 type="text"
+                                 value={jobCompany}
+                                 onChange={(e) => setJobCompany(e.target.value)}
+                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
+                                 placeholder="Your Company Name"
+                              />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><MapPin size={14} /> Location</label>
+                              <input
+                                 type="text"
+                                 value={jobLocation}
+                                 onChange={(e) => setJobLocation(e.target.value)}
+                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
+                                 placeholder="e.g. New York, NY"
+                              />
+                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><DollarSign size={14} /> Salary Range</label>
+                              <input
+                                 type="text"
+                                 value={jobSalary}
+                                 onChange={(e) => setJobSalary(e.target.value)}
+                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
+                                 placeholder="e.g. $120k - $150k"
+                              />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><Globe size={14} /> Job Type</label>
+                              <select
+                                 value={jobType}
+                                 onChange={(e) => setJobType(e.target.value)}
+                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition bg-white"
+                              >
+                                 <option value="Remote">Remote</option>
+                                 <option value="On-site">On-site</option>
+                                 <option value="Hybrid">Hybrid</option>
+                                 <option value="Contract">Contract</option>
+                              </select>
+                           </div>
+                        </div>
+
                         <div>
-                           <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><MapPin size={14} /> Location</label>
-                           <input
-                              type="text"
-                              value={jobLocation}
-                              onChange={(e) => setJobLocation(e.target.value)}
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
-                              placeholder="e.g. New York, NY"
+                           <label className="block text-sm font-bold text-gray-700 mb-1">Job Description</label>
+                           <textarea
+                              value={jobDescription}
+                              onChange={(e) => setJobDescription(e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 h-32 resize-none focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
+                              placeholder="Describe the role, responsibilities, and requirements..."
                            />
                         </div>
                      </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                           <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><DollarSign size={14} /> Salary Range</label>
-                           <input
-                              type="text"
-                              value={jobSalary}
-                              onChange={(e) => setJobSalary(e.target.value)}
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
-                              placeholder="e.g. $120k - $150k"
-                           />
-                        </div>
-                        <div>
-                           <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2"><Globe size={14} /> Job Type</label>
-                           <select
-                              value={jobType}
-                              onChange={(e) => setJobType(e.target.value)}
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition bg-white"
-                           >
-                              <option value="Remote">Remote</option>
-                              <option value="On-site">On-site</option>
-                              <option value="Hybrid">Hybrid</option>
-                              <option value="Contract">Contract</option>
-                           </select>
-                        </div>
+                     <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                        <button
+                           onClick={() => setShowPostJob(false)}
+                           className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition"
+                        >
+                           Cancel
+                        </button>
+                        <button
+                           onClick={handlePostJob}
+                           disabled={isMatching || !jobTitle || !jobDescription}
+                           className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2 shadow-lg"
+                        >
+                           {isMatching ? 'Analyzing...' : 'Post & Find Candidates'}
+                        </button>
                      </div>
-
-                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Job Description</label>
-                        <textarea
-                           value={jobDescription}
-                           onChange={(e) => setJobDescription(e.target.value)}
-                           className="w-full border border-gray-300 rounded-lg px-3 py-2 h-32 resize-none focus:ring-2 focus:ring-teal focus:border-transparent outline-none transition"
-                           placeholder="Describe the role, responsibilities, and requirements..."
-                        />
-                     </div>
-                  </div>
-
-                  <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                     <button
-                        onClick={() => setShowPostJob(false)}
-                        className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition"
-                     >
-                        Cancel
-                     </button>
-                     <button
-                        onClick={handlePostJob}
-                        disabled={isMatching || !jobTitle || !jobDescription}
-                        className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2 shadow-lg"
-                     >
-                        {isMatching ? 'Analyzing...' : 'Post & Find Candidates'}
-                     </button>
-                  </div>
-               </div>
-            </div>
-         )}
+                  </motion.div>
+               </motion.div>
+            )}
+         </AnimatePresence>
 
          {/* Header */}
-         <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-10 shadow-sm">
+         <motion.header
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-10 shadow-sm"
+         >
             <div className="max-w-7xl mx-auto flex justify-between items-center">
                <div className="flex items-center gap-2">
                   <div className="bg-black text-white p-1.5 rounded-full">
@@ -586,23 +669,27 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
                   <span className="font-bold text-xl">lune <span className="text-gray-400 font-normal">| Employer</span></span>
                </div>
                <div className="flex items-center gap-4">
-                  <button
+                  <motion.button
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
                      onClick={() => setShowVerification(true)}
                      className="flex items-center gap-2 text-sm font-medium text-teal-700 hover:bg-teal-50 px-3 py-2 rounded-lg transition"
                   >
                      <ShieldCheck size={16} /> Verify Hash
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
                      onClick={() => setShowPostJob(true)}
                      className="flex items-center gap-2 text-sm font-medium bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition shadow-lg shadow-black/20"
                   >
                      <Plus size={16} /> Post Job
-                  </button>
+                  </motion.button>
                   <div className="w-8 h-8 bg-orange rounded-full flex items-center justify-center text-white font-bold text-xs">C</div>
                   <button onClick={onLogout} className="text-sm font-medium hover:text-red-600">Log out</button>
                </div>
             </div>
-         </header>
+         </motion.header>
 
          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -639,7 +726,11 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
 
                {/* CANDIDATE FILTERS */}
                {activeTab === 'candidates' && (
-                  <div className="space-y-4 animate-in slide-in-from-bottom-2">
+                  <motion.div
+                     initial={{ opacity: 0, y: -10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     className="space-y-4"
+                  >
                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                         {['All', 'Software Engineering', 'Data Science', 'Product Design', 'Cloud Architecture'].map(ind => (
                            <button
@@ -675,49 +766,62 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
                            </button>
                         </div>
 
-                        {showFilters && (
-                           <div className="w-full pt-4 mt-2 border-t border-gray-100 flex flex-wrap gap-6 animate-in slide-in-from-top-2">
-                              <div className="flex items-center gap-4">
-                                 <span className="text-sm font-bold text-gray-700 flex items-center gap-2"><Clock size={16} /> Min Experience:</span>
-                                 <div className="flex items-center gap-3">
-                                    <input
-                                       type="range"
-                                       min="0"
-                                       max="10"
-                                       value={minExperience}
-                                       onChange={(e) => setMinExperience(parseInt(e.target.value))}
-                                       className="w-32 accent-teal-600"
-                                    />
-                                    <span className="text-sm font-mono bg-gray-100 px-2 py-0.5 rounded">{minExperience}+ Years</span>
-                                 </div>
-                              </div>
+                        <AnimatePresence>
+                           {showFilters && (
+                              <motion.div
+                                 initial={{ height: 0, opacity: 0 }}
+                                 animate={{ height: 'auto', opacity: 1 }}
+                                 exit={{ height: 0, opacity: 0 }}
+                                 className="w-full overflow-hidden"
+                              >
+                                 <div className="pt-4 mt-2 border-t border-gray-100 flex flex-wrap gap-6">
+                                    <div className="flex items-center gap-4">
+                                       <span className="text-sm font-bold text-gray-700 flex items-center gap-2"><Clock size={16} /> Min Experience:</span>
+                                       <div className="flex items-center gap-3">
+                                          <input
+                                             type="range"
+                                             min="0"
+                                             max="10"
+                                             value={minExperience}
+                                             onChange={(e) => setMinExperience(parseInt(e.target.value))}
+                                             className="w-32 accent-teal-600"
+                                          />
+                                          <span className="text-sm font-mono bg-gray-100 px-2 py-0.5 rounded">{minExperience}+ Years</span>
+                                       </div>
+                                    </div>
 
-                              <div className="flex items-center gap-4">
-                                 <span className="text-sm font-bold text-gray-700 flex items-center gap-2"><Award size={16} /> Certification:</span>
-                                 <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                       type="checkbox"
-                                       checked={verifiedOnly}
-                                       onChange={(e) => setVerifiedOnly(e.target.checked)}
-                                       className="w-4 h-4 accent-teal-600 rounded"
-                                    />
-                                    <span className="text-sm text-gray-600">Verified Only</span>
-                                 </label>
-                              </div>
-                           </div>
-                        )}
+                                    <div className="flex items-center gap-4">
+                                       <span className="text-sm font-bold text-gray-700 flex items-center gap-2"><Award size={16} /> Certification:</span>
+                                       <label className="flex items-center gap-2 cursor-pointer">
+                                          <input
+                                             type="checkbox"
+                                             checked={verifiedOnly}
+                                             onChange={(e) => setVerifiedOnly(e.target.checked)}
+                                             className="w-4 h-4 accent-teal-600 rounded"
+                                          />
+                                          <span className="text-sm text-gray-600">Verified Only</span>
+                                       </label>
+                                    </div>
+                                 </div>
+                              </motion.div>
+                           )}
+                        </AnimatePresence>
                      </div>
                      {rankedCandidates.length > 0 && (
                         <p className="text-teal-600 text-sm font-medium flex items-center gap-2 mt-2 animate-pulse">
                            <Sparkles size={14} /> Showing top AI matches
                         </p>
                      )}
-                  </div>
+                  </motion.div>
                )}
 
                {/* JOB SEARCH */}
                {activeTab === 'jobs' && (
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 animate-in slide-in-from-bottom-2">
+                  <motion.div
+                     initial={{ opacity: 0, y: 10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"
+                  >
                      <div className="relative w-full">
                         <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
                         <input
@@ -728,7 +832,7 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-teal focus:border-transparent text-sm"
                         />
                      </div>
-                  </div>
+                  </motion.div>
                )}
             </div>
 
@@ -749,9 +853,18 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
                      </button>
                   </div>
                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+                  <motion.div
+                     variants={containerVariants}
+                     initial="hidden"
+                     animate="visible"
+                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  >
                      {displayedCandidates.map((candidate) => (
-                        <div key={candidate.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition border border-gray-100 group flex flex-col">
+                        <motion.div
+                           key={candidate.id}
+                           variants={itemVariants}
+                           className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition border border-gray-100 group flex flex-col"
+                        >
                            <div className="relative h-48 bg-gray-200">
                               <img src={candidate.image} alt={candidate.name} className="w-full h-full object-cover" />
                               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -799,118 +912,79 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
                                  </div>
                               )}
 
-                              <div className="space-y-3 mt-4 mb-6">
+                              <div className="mt-4 flex flex-wrap gap-2">
                                  {Object.entries(candidate.skills).slice(0, 3).map(([skill, score]) => (
-                                    <div key={skill}>
-                                       <div className="flex justify-between text-xs font-bold mb-1">
-                                          <span className="text-slate-700">{skill}</span>
-                                          <span className={getScoreTextColor(score as number)}>{score as number}%</span>
-                                       </div>
-                                       <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                          <div
-                                             className={`h-1.5 rounded-full ${getScoreColor(score as number)} transition-all duration-1000`}
-                                             style={{ width: `${score}%` }}
-                                          ></div>
-                                       </div>
-                                    </div>
+                                    <span key={skill} className="bg-gray-50 text-gray-600 text-xs px-2 py-1 rounded border border-gray-200">
+                                       {skill} <span className={`font-semibold ${getScoreTextColor(score as number)}`}>{score}%</span>
+                                    </span>
                                  ))}
                               </div>
 
-                              <div className="mt-auto pt-4 border-t border-gray-100 flex gap-2">
+                              <div className="mt-auto pt-6 flex gap-3">
                                  <button
-                                    onClick={() => openProfile(candidate, 'overview')}
-                                    className="flex-1 bg-black text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-800 transition"
+                                    onClick={() => openProfile(candidate)}
+                                    className="flex-1 bg-black text-white py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition"
                                  >
                                     View Profile
                                  </button>
-                                 <button
-                                    onClick={() => openProfile(candidate, 'credentials')}
-                                    className="px-3 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-teal-600"
-                                    title="View Credentials"
-                                 >
-                                    <Award size={18} />
+                                 <button className="px-3 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
+                                    <Mail size={18} />
                                  </button>
                               </div>
                            </div>
-                        </div>
+                        </motion.div>
                      ))}
-                  </div>
+                  </motion.div>
                )
             ) : (
-               /* JOBS GRID */
-               displayedJobs.length === 0 ? (
-                  <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 border-dashed">
-                     <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Briefcase className="text-gray-400" size={24} />
-                     </div>
-                     <h3 className="text-lg font-bold text-gray-900">No active job postings</h3>
-                     <p className="text-gray-500 text-sm">Create a new job listing to start finding talent.</p>
-                     <button
-                        onClick={() => setShowPostJob(true)}
-                        className="mt-4 bg-teal-600 text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-teal-700 transition"
-                     >
-                        Post a Job
-                     </button>
-                  </div>
-               ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+               <div className="space-y-4">
+                  <AnimatePresence>
                      {displayedJobs.map((job) => (
-                        <div key={job.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col hover:shadow-md transition relative group">
-                           <div className="flex justify-between items-start mb-4">
-                              <div>
-                                 <h3 className="font-bold text-lg text-slate-900 leading-tight mb-1">{job.title}</h3>
-                                 <p className="text-slate-500 text-sm font-medium flex items-center gap-1">
-                                    <Building2 size={12} /> {job.company}
-                                 </p>
+                        <motion.div
+                           key={job.id}
+                           initial={{ opacity: 0, x: -20 }}
+                           animate={{ opacity: 1, x: 0 }}
+                           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                           className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+                        >
+                           <div>
+                              <h3 className="font-bold text-lg text-slate-900">{job.title}</h3>
+                              <div className="flex flex-wrap gap-4 text-sm text-gray-500 mt-2">
+                                 <span className="flex items-center gap-1"><Building2 size={14} /> {job.company}</span>
+                                 <span className="flex items-center gap-1"><MapPin size={14} /> {job.location}</span>
+                                 <span className="flex items-center gap-1"><DollarSign size={14} /> {job.salary}</span>
+                                 <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-bold">{job.type}</span>
                               </div>
+                           </div>
+                           <div className="flex items-center gap-3 w-full md:w-auto">
+                              <button className="flex-1 md:flex-initial px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 hover:text-black transition">
+                                 Edit
+                              </button>
                               <button
-                                 onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteJob(job.id);
-                                 }}
-                                 className="text-gray-300 hover:text-red-500 hover:bg-red-50 transition p-2 rounded-full"
-                                 title="Delete Job"
+                                 onClick={() => deleteJob(job.id)}
+                                 className="px-3 py-2 border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition"
                               >
-                                 <Trash2 size={18} />
+                                 <Trash2 size={16} />
                               </button>
                            </div>
-
-                           <div className="flex flex-wrap gap-2 mb-4">
-                              <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-md border border-blue-100 flex items-center gap-1">
-                                 <Globe size={10} /> {job.type}
-                              </span>
-                              <span className="px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-md border border-green-100 flex items-center gap-1">
-                                 <DollarSign size={10} /> {job.salary}
-                              </span>
-                              <span className="px-2 py-1 bg-gray-50 text-gray-600 text-xs font-bold rounded-md border border-gray-100 flex items-center gap-1">
-                                 <MapPin size={10} /> {job.location}
-                              </span>
-                           </div>
-
-                           <div className="text-sm text-gray-600 mb-6 line-clamp-3 flex-1">
-                              {job.description}
-                           </div>
-
-                           <div className="pt-4 border-t border-gray-100 flex gap-2">
-                              <button
-                                 onClick={() => {
-                                    setActiveTab('candidates');
-                                    setJobTitle(job.title);
-                                    setJobDescription(job.description || '');
-                                    handlePostJob();
-                                 }}
-                                 className="flex-1 bg-black text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-800 transition flex items-center justify-center gap-2"
-                              >
-                                 <Sparkles size={14} className="text-yellow-400" /> Find Matches
-                              </button>
-                              <button className="px-3 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
-                                 <FileText size={18} />
-                              </button>
-                           </div>
-                        </div>
+                        </motion.div>
                      ))}
-                  </div>
-               )
+                  </AnimatePresence>
+
+                  {displayedJobs.length === 0 && (
+                     <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 border-dashed">
+                        <Briefcase className="mx-auto text-gray-300 mb-3" size={48} />
+                        <h3 className="text-lg font-bold text-gray-900">No active job posts</h3>
+                        <p className="text-gray-500 text-sm mb-6">Create a listing to start finding talent.</p>
+                        <button
+                           onClick={() => setShowPostJob(true)}
+                           className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition shadow-lg"
+                        >
+                           Post a Job
+                        </button>
+                     </div>
+                  )}
+               </div>
             )}
          </main>
       </div>
