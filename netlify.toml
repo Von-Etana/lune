@@ -7,9 +7,9 @@
 #
 # Required Environment Variables:
 # --------------------------------
-# VITE_SUPABASE_URL        = https://yrnulossvinxpifoukhm.supabase.co
-# VITE_SUPABASE_ANON_KEY   = (your Supabase anon key from Supabase Dashboard)
-# VITE_API_URL             = https://lune-backend.onrender.com/api
+# VITE_SUPABASE_URL        = (your Supabase project URL)
+# VITE_SUPABASE_ANON_KEY   = (your Supabase anon key)
+# VITE_API_URL             = (your backend API URL)
 #
 # Optional Environment Variables:
 # --------------------------------
@@ -27,8 +27,9 @@
   NODE_VERSION = "20"
   # Skip secrets scanning for example files and documentation
   # These contain placeholder values, not real secrets
-  SECRETS_SCAN_OMIT_PATHS = "env.example,backend/env.example,SETUP_GUIDE.md,DEPLOYMENT_GUIDE.md,CONFIGURATION_STATUS.md,README.md,backend/README.md,backend/API_DOCUMENTATION.md,render.yaml,setup.ps1"
-  SECRETS_SCAN_OMIT_KEYS = "PORT,NODE_ENV,PWR_CHAIN_RPC_URL,PWR_CHAIN_ID,ALLOWED_ORIGINS,RATE_LIMIT_WINDOW_MS"
+  SECRETS_SCAN_OMIT_PATHS = "env.example,backend/env.example,SETUP_GUIDE.md,DEPLOYMENT_GUIDE.md,CONFIGURATION_STATUS.md,README.md,backend/README.md,backend/API_DOCUMENTATION.md,render.yaml,setup.ps1,dist/**"
+  # Client-side env vars (VITE_*) are designed to be public and bundled into the frontend
+  SECRETS_SCAN_OMIT_KEYS = "PORT,NODE_ENV,PWR_CHAIN_RPC_URL,PWR_CHAIN_ID,ALLOWED_ORIGINS,RATE_LIMIT_WINDOW_MS,SUPABASE_URL,VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_API_URL,GEMINI_API_KEY,VITE_GEMINI_API_KEY"
 
 # SPA redirect for client-side routing
 [[redirects]]
