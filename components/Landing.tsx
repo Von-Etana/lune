@@ -73,11 +73,11 @@ export const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
                animate={{ opacity: 1, x: 0 }}
                className="hidden md:flex gap-4"
             >
-               <button onClick={() => onNavigate(ViewState.AUTH_SELECTION)} className="text-sm font-semibold px-4 py-2 hover:bg-gray-200 rounded-lg transition">Log in</button>
+               <button onClick={() => onNavigate(ViewState.LOGIN)} className="text-sm font-semibold px-4 py-2 hover:bg-gray-200 rounded-lg transition">Log in</button>
                <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => onNavigate(ViewState.AUTH_SELECTION)}
+                  onClick={() => onNavigate(ViewState.SIGNUP)}
                   className="bg-black text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-gray-800 transition"
                >
                   Sign up
@@ -102,8 +102,8 @@ export const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
                   <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-slate-600 font-medium">Features</a>
                   <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="text-slate-600 font-medium">How it Works</a>
                   <hr className="border-gray-100" />
-                  <button onClick={() => onNavigate(ViewState.AUTH_SELECTION)} className="text-left font-semibold py-2">Log in</button>
-                  <button onClick={() => onNavigate(ViewState.AUTH_SELECTION)} className="bg-black text-white font-semibold py-3 rounded-lg text-center">Sign up</button>
+                  <button onClick={() => onNavigate(ViewState.LOGIN)} className="text-left font-semibold py-2">Log in</button>
+                  <button onClick={() => onNavigate(ViewState.SIGNUP)} className="bg-black text-white font-semibold py-3 rounded-lg text-center">Sign up</button>
                </motion.div>
             )}
          </AnimatePresence>
@@ -196,7 +196,7 @@ export const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
                      <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => onNavigate(ViewState.AUTH_SELECTION)}
+                        onClick={() => onNavigate(ViewState.SIGNUP)}
                         className="bg-black text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-800 transition w-full sm:w-auto shadow-xl shadow-orange/10 hover:shadow-2xl hover:shadow-orange/20"
                      >
                         Get Started

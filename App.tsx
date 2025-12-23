@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Landing } from './components/Landing';
 import { Assessment } from './components/Assessment';
 import { EmployerDashboard } from './components/EmployerDashboard';
 import { CandidateDashboard } from './components/CandidateDashboard';
+import { AuthModal } from './components/AuthModal';
 import { ViewState, UserRole, EvaluationResult, CandidateProfile, DifficultyLevel } from './types';
 import { CheckCircle, AlertCircle, Code, ArrowLeft, ArrowRight, Award, ShieldCheck, Share2, Copy, Github, Download, ExternalLink } from 'lucide-react';
 import { ToastProvider, useToast } from './lib/toast';
 import { celebrateSuccess } from './lib/confetti';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Mock logged-in candidate
 const MOCK_PROFILE: CandidateProfile = {
@@ -22,16 +24,67 @@ const MOCK_PROFILE: CandidateProfile = {
 
 function AppContent() {
   const toast = useToast();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.LANDING);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string>('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('Mid-Level');
   const [assessmentResult, setAssessmentResult] = useState<EvaluationResult | null>(null);
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile>(MOCK_PROFILE);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+
+  // Update profile when user changes
+  useEffect(() => {
+    if (user) {
+      setCandidateProfile(prev => ({
+        ...prev,
+        id: user.id,
+        name: user.name,
+      }));
+      setUserRole(user.role === 'candidate' ? UserRole.CANDIDATE : UserRole.EMPLOYER);
+    }
+  }, [user]);
 
   const handleNavigate = (view: ViewState, role?: UserRole) => {
     if (role) setUserRole(role);
+
+    // Handle auth views by opening modal instead
+    if (view === ViewState.LOGIN) {
+      setAuthModalMode('login');
+      setAuthModalOpen(true);
+      return;
+    }
+    if (view === ViewState.SIGNUP) {
+      setAuthModalMode('signup');
+      setAuthModalOpen(true);
+      return;
+    }
+    if (view === ViewState.AUTH_SELECTION) {
+      setAuthModalMode('signup');
+      setAuthModalOpen(true);
+      return;
+    }
+
     setCurrentView(view);
+  };
+
+  const handleAuthSuccess = (role: 'candidate' | 'employer') => {
+    setAuthModalOpen(false);
+    if (role === 'candidate') {
+      setUserRole(UserRole.CANDIDATE);
+      setCurrentView(ViewState.CANDIDATE_DASHBOARD);
+    } else {
+      setUserRole(UserRole.EMPLOYER);
+      setCurrentView(ViewState.EMPLOYER_DASHBOARD);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setUserRole(null);
+    setCurrentView(ViewState.LANDING);
+    toast.success('👋 Logged out successfully!');
   };
 
   const handleStartAssessment = (skill?: string) => {
@@ -270,13 +323,12 @@ function AppContent() {
   return (
     <>
       {currentView === ViewState.LANDING && <Landing onNavigate={handleNavigate} />}
-      {currentView === ViewState.AUTH_SELECTION && renderAuthSelection()}
 
       {currentView === ViewState.CANDIDATE_DASHBOARD && (
         <CandidateDashboard
           candidate={candidateProfile}
           onStartAssessment={handleStartAssessment}
-          onLogout={() => setCurrentView(ViewState.LANDING)}
+          onLogout={handleLogout}
           onUpdateProfile={(updates) => setCandidateProfile(prev => ({ ...prev, ...updates }))}
         />
       )}
@@ -290,18 +342,28 @@ function AppContent() {
       {currentView === ViewState.ASSESSMENT_RESULT && renderResult()}
 
       {currentView === ViewState.EMPLOYER_DASHBOARD && (
-        <EmployerDashboard onLogout={() => setCurrentView(ViewState.LANDING)} />
+        <EmployerDashboard onLogout={handleLogout} />
       )}
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
+        onSuccess={handleAuthSuccess}
+      />
     </>
   );
 }
 
-// Main App wrapper with ToastProvider
+// Main App wrapper with ToastProvider and AuthProvider
 function App() {
   return (
-    <ToastProvider>
-      <AppContent />
-    </ToastProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
+    </AuthProvider>
   );
 }
 
