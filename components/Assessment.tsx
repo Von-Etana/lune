@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, AlertTriangle, Loader, Code, ShieldAlert, ShieldCheck, Eye, Command, Check, Send, Clock, Cpu, FileJson, XCircle } from 'lucide-react';
+import { Play, AlertTriangle, Loader, Code, ShieldAlert, ShieldCheck, Eye, Command, Check, Send, Clock, Cpu, FileJson, XCircle, Terminal, CheckCircle2, XCircle as XCircleIcon } from 'lucide-react';
 import { evaluateCodeSubmission, generateCheatingAnalysis, generateAssessment } from '../services/geminiService';
 import { mintCertificate } from '../services/pwrService';
+import { smartExecuteCode, TestCase, CodeExecutionResult } from '../services/codeExecutionService';
 import { EvaluationResult, AssessmentContent, DifficultyLevel } from '../types';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-javascript';
@@ -45,6 +46,18 @@ export const Assessment: React.FC<AssessmentProps> = ({ skill, difficulty, onCom
   const [activeAlert, setActiveAlert] = useState<string | null>(null);
   const [showGazeOverlay, setShowGazeOverlay] = useState(false);
   const [gazePosition, setGazePosition] = useState({ x: 50, y: 50 });
+
+  // Code Execution State
+  const [isRunning, setIsRunning] = useState(false);
+  const [executionResult, setExecutionResult] = useState<CodeExecutionResult | null>(null);
+  const [showOutput, setShowOutput] = useState(false);
+
+  // Sample test cases for the assessment
+  const testCases: TestCase[] = [
+    { name: 'Basic Test', input: '', expected_output: 'Hello World' },
+    { name: 'Edge Case', input: '5', expected_output: '5' },
+    { name: 'Large Input', input: '100', expected_output: '100' },
+  ];
 
   // Proctoring Metrics
   const [pasteCount, setPasteCount] = useState(0);
@@ -262,6 +275,29 @@ export const Assessment: React.FC<AssessmentProps> = ({ skill, difficulty, onCom
         textareaRef.current.focus();
       }
     }, 0);
+  };
+
+  // Run code with test cases
+  const handleRunCode = async () => {
+    setIsRunning(true);
+    setShowOutput(true);
+    setExecutionResult(null);
+
+    try {
+      const result = await smartExecuteCode(code, 'javascript', testCases);
+      setExecutionResult(result);
+    } catch (error) {
+      setExecutionResult({
+        success: false,
+        results: [],
+        totalTests: testCases.length,
+        passedTests: 0,
+        executionTime: null,
+        error: error instanceof Error ? error.message : 'Execution failed',
+      });
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const handleSubmit = useCallback(async () => {
@@ -535,15 +571,97 @@ export const Assessment: React.FC<AssessmentProps> = ({ skill, difficulty, onCom
                 <p className="animate-pulse">{statusMessage}</p>
               </div>
             ) : (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSubmit}
-                className="w-full bg-teal-600 text-white py-3 rounded-lg font-bold hover:bg-teal-500 transition flex items-center justify-center gap-2 shadow-lg shadow-teal-900/20"
-              >
-                Submit Assessment <Send size={16} />
-              </motion.button>
+              <div className="space-y-3">
+                {/* Run Code Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleRunCode}
+                  disabled={isRunning}
+                  className="w-full bg-gray-700 text-white py-2.5 rounded-lg font-bold hover:bg-gray-600 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isRunning ? (
+                    <>
+                      <Loader className="animate-spin" size={14} />
+                      Running...
+                    </>
+                  ) : (
+                    <>
+                      <Play size={14} /> Run Code
+                    </>
+                  )}
+                </motion.button>
+
+                {/* Submit Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSubmit}
+                  className="w-full bg-teal-600 text-white py-3 rounded-lg font-bold hover:bg-teal-500 transition flex items-center justify-center gap-2 shadow-lg shadow-teal-900/20"
+                >
+                  Submit Assessment <Send size={16} />
+                </motion.button>
+              </div>
             )}
+
+            {/* Execution Results */}
+            <AnimatePresence>
+              {showOutput && executionResult && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 bg-gray-900 rounded-lg border border-gray-800 overflow-hidden"
+                >
+                  <div className="px-3 py-2 bg-gray-950 border-b border-gray-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                      <Terminal size={12} />
+                      Output
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${executionResult.passedTests === executionResult.totalTests ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {executionResult.passedTests}/{executionResult.totalTests} Passed
+                      </span>
+                      {executionResult.executionTime && (
+                        <span className="text-xs text-gray-500">{executionResult.executionTime}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 space-y-2 max-h-40 overflow-y-auto">
+                    {executionResult.results.map((result, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex items-start gap-2 text-xs p-2 rounded ${result.passed ? 'bg-green-900/20 text-green-300' : 'bg-red-900/20 text-red-300'}`}
+                      >
+                        {result.passed ? (
+                          <CheckCircle2 size={14} className="text-green-400 shrink-0 mt-0.5" />
+                        ) : (
+                          <XCircleIcon size={14} className="text-red-400 shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1">
+                          <div className="font-bold">{result.testCase.name || `Test ${idx + 1}`}</div>
+                          {!result.passed && result.actual_output && (
+                            <div className="mt-1 text-gray-400">
+                              Expected: <code className="bg-gray-800 px-1 rounded">{result.testCase.expected_output}</code>
+                              <br />
+                              Got: <code className="bg-gray-800 px-1 rounded">{result.actual_output}</code>
+                            </div>
+                          )}
+                          {result.error && (
+                            <div className="mt-1 text-red-400">{result.error}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {executionResult.error && (
+                      <div className="text-red-400 text-xs p-2 bg-red-900/20 rounded">
+                        {executionResult.error}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
 
