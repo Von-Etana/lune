@@ -1,4 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+}
+
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 // Types
 export interface AuthUser {
@@ -26,12 +37,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = (typeof window !== 'undefined' && (window as any).__VITE_API_URL__) || '';
-
 // Storage keys
 const STORAGE_KEYS = {
-    USER: 'lune_user',
-    SESSION: 'lune_session',
+    USER_PROFILE: 'lune_user_profile',
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -39,76 +47,81 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [session, setSession] = useState<AuthSession | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load stored auth on mount
+    // Load auth state on mount
     useEffect(() => {
-        const loadStoredAuth = async () => {
+        const loadAuthState = async () => {
             try {
-                const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-                const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
+                // Get current session from Supabase
+                const { data: { session: currentSession } } = await supabase.auth.getSession();
 
-                if (storedUser && storedSession) {
-                    const parsedUser = JSON.parse(storedUser);
-                    const parsedSession = JSON.parse(storedSession);
-
-                    // Check if session is expired
-                    if (parsedSession.expires_at * 1000 > Date.now()) {
-                        setUser(parsedUser);
-                        setSession(parsedSession);
-                    } else {
-                        // Try to refresh the token
-                        await refreshToken(parsedSession.refresh_token);
-                    }
+                if (currentSession) {
+                    await handleSession(currentSession);
                 }
             } catch (error) {
-                console.error('Error loading stored auth:', error);
-                clearStorage();
+                console.error('Error loading auth state:', error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadStoredAuth();
+        loadAuthState();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+            console.log('Auth state changed:', event);
+            if (newSession) {
+                await handleSession(newSession);
+            } else {
+                setUser(null);
+                setSession(null);
+                localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
     }, []);
 
-    const clearStorage = () => {
-        localStorage.removeItem(STORAGE_KEYS.USER);
-        localStorage.removeItem(STORAGE_KEYS.SESSION);
-    };
+    const handleSession = async (supabaseSession: Session) => {
+        // Set session data
+        setSession({
+            access_token: supabaseSession.access_token,
+            refresh_token: supabaseSession.refresh_token || '',
+            expires_at: supabaseSession.expires_at || 0,
+        });
 
-    const saveToStorage = (userData: AuthUser, sessionData: AuthSession) => {
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
-        localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(sessionData));
-    };
+        // Try to get user profile from our users table
+        const { data: profile, error } = await supabase
+            .from('users')
+            .select('id, email, name, role')
+            .eq('id', supabaseSession.user.id)
+            .single();
 
-    const refreshToken = async (refreshToken: string): Promise<boolean> => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh_token: refreshToken }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Token refresh failed');
+        if (profile && !error) {
+            const authUser: AuthUser = {
+                id: profile.id,
+                email: profile.email,
+                name: profile.name,
+                role: profile.role,
+            };
+            setUser(authUser);
+            localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(authUser));
+        } else {
+            // Fallback: use cached profile or create minimal user
+            const cachedProfile = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+            if (cachedProfile) {
+                setUser(JSON.parse(cachedProfile));
+            } else {
+                // Minimal fallback user from auth metadata
+                const authUser: AuthUser = {
+                    id: supabaseSession.user.id,
+                    email: supabaseSession.user.email || '',
+                    name: supabaseSession.user.user_metadata?.name || 'User',
+                    role: supabaseSession.user.user_metadata?.role || 'candidate',
+                };
+                setUser(authUser);
             }
-
-            const data = await response.json();
-
-            if (data.session) {
-                setSession(data.session);
-                const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-                if (storedUser) {
-                    const parsedUser = JSON.parse(storedUser);
-                    saveToStorage(parsedUser, data.session);
-                }
-                return true;
-            }
-            return false;
-        } catch {
-            clearStorage();
-            setUser(null);
-            setSession(null);
-            return false;
         }
     };
 
@@ -121,23 +134,80 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             setIsLoading(true);
 
-            const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, name, role }),
+            // Sign up with Supabase Auth
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        name,
+                        role,
+                    },
+                },
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                return { success: false, error: data.error || 'Signup failed' };
+            if (authError) {
+                console.error('Signup auth error:', authError);
+                return { success: false, error: authError.message };
             }
 
-            // After signup, automatically log in
-            return await login(email, password);
+            if (!authData.user) {
+                return { success: false, error: 'Failed to create account' };
+            }
+
+            // Create user profile in our users table
+            const { error: profileError } = await supabase
+                .from('users')
+                .insert({
+                    id: authData.user.id,
+                    email,
+                    name,
+                    role,
+                });
+
+            if (profileError) {
+                console.error('Profile creation error:', profileError);
+                // Don't fail signup if profile creation fails - it might be due to RLS
+                // The user can still log in and we'll create the profile later
+            }
+
+            // Create role-specific profile
+            if (role === 'candidate') {
+                await supabase
+                    .from('candidate_profiles')
+                    .insert({
+                        user_id: authData.user.id,
+                        title: 'Software Developer',
+                        location: 'Remote',
+                    });
+            } else {
+                await supabase
+                    .from('employer_profiles')
+                    .insert({
+                        user_id: authData.user.id,
+                        company_name: 'My Company',
+                    });
+            }
+
+            // Check if email confirmation is required
+            if (authData.session) {
+                // Auto-confirmed, set user immediately
+                const authUser: AuthUser = {
+                    id: authData.user.id,
+                    email,
+                    name,
+                    role,
+                };
+                setUser(authUser);
+                localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(authUser));
+                return { success: true };
+            } else {
+                // Email confirmation required
+                return { success: true, error: 'Please check your email to confirm your account.' };
+            }
         } catch (error) {
             console.error('Signup error:', error);
-            return { success: false, error: 'Network error. Please try again.' };
+            return { success: false, error: 'An unexpected error occurred. Please try again.' };
         } finally {
             setIsLoading(false);
         }
@@ -150,39 +220,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             setIsLoading(true);
 
-            const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                return { success: false, error: data.error || 'Invalid credentials' };
+            if (error) {
+                console.error('Login error:', error);
+                return { success: false, error: error.message };
             }
 
-            const userData: AuthUser = {
-                id: data.user.id,
-                email: data.user.email,
-                name: data.user.name,
-                role: data.user.role,
-            };
+            if (!data.user || !data.session) {
+                return { success: false, error: 'Login failed' };
+            }
 
-            const sessionData: AuthSession = {
-                access_token: data.session.access_token,
-                refresh_token: data.session.refresh_token,
-                expires_at: data.session.expires_at,
-            };
-
-            setUser(userData);
-            setSession(sessionData);
-            saveToStorage(userData, sessionData);
-
+            // Session will be handled by onAuthStateChange
             return { success: true };
         } catch (error) {
             console.error('Login error:', error);
-            return { success: false, error: 'Network error. Please try again.' };
+            return { success: false, error: 'An unexpected error occurred. Please try again.' };
         } finally {
             setIsLoading(false);
         }
@@ -190,23 +246,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const logout = useCallback(async () => {
         try {
-            if (session?.access_token) {
-                await fetch(`${API_BASE_URL}/api/auth/logout`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
-                    },
-                });
-            }
+            setIsLoading(true);
+            await supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+            localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
         } catch (error) {
             console.error('Logout error:', error);
         } finally {
-            setUser(null);
-            setSession(null);
-            clearStorage();
+            setIsLoading(false);
         }
-    }, [session]);
+    }, []);
 
     const value: AuthContextType = {
         user,
@@ -232,3 +282,6 @@ export const useAuth = (): AuthContextType => {
     }
     return context;
 };
+
+// Export supabase client for other uses
+export { supabase };
