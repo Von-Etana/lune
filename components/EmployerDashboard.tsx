@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Play, Award, MapPin, CheckCircle, Sliders, FileText, ShieldCheck, XCircle, Plus, Sparkles, Briefcase, GraduationCap, Filter, Building2, DollarSign, Globe, Clock, Trash2, Mail, User, X, ExternalLink, Copy, Loader, ChevronDown } from 'lucide-react';
+import { Search, Play, Award, MapPin, CheckCircle, Sliders, FileText, ShieldCheck, XCircle, Plus, Sparkles, Briefcase, GraduationCap, Filter, Building2, DollarSign, Globe, Clock, Trash2, Mail, User, X, ExternalLink, Copy, Loader, ChevronDown, BarChart3 } from 'lucide-react';
 import { getCertificateDetails } from '../services/pwrService';
 import { matchCandidatesToJob } from '../services/geminiService';
 import { CertificateDetails, CandidateProfile, Job } from '../types';
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface EmployerDashboardProps {
    onLogout: () => void;
+   onOpenEnterpriseDashboard?: () => void;
 }
 
 const MOCK_CANDIDATES: CandidateProfile[] = [
@@ -90,7 +91,7 @@ const MOCK_POSTED_JOBS: Job[] = [
    }
 ];
 
-export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }) => {
+export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout, onOpenEnterpriseDashboard }) => {
    const toast = useToast();
    const [activeTab, setActiveTab] = useState<'candidates' | 'jobs'>('candidates');
 
@@ -677,6 +678,16 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({ onLogout }
                   >
                      <ShieldCheck size={16} /> Verify Hash
                   </motion.button>
+                  {onOpenEnterpriseDashboard && (
+                     <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={onOpenEnterpriseDashboard}
+                        className="flex items-center gap-2 text-sm font-medium text-purple-700 hover:bg-purple-50 px-3 py-2 rounded-lg transition"
+                     >
+                        <BarChart3 size={16} /> Analytics
+                     </motion.button>
+                  )}
                   <motion.button
                      whileHover={{ scale: 1.05 }}
                      whileTap={{ scale: 0.95 }}

@@ -4,11 +4,16 @@ import { Assessment } from './components/Assessment';
 import { EmployerDashboard } from './components/EmployerDashboard';
 import { CandidateDashboard } from './components/CandidateDashboard';
 import { AuthModal } from './components/AuthModal';
+import { EnterpriseDashboard } from './components/EnterpriseDashboard';
+import { CertificateBadge } from './components/CertificateBadge';
+import { VideoAnalyzer } from './components/VideoAnalyzer';
+import { CertificateData } from './services/certificateBadgeService';
 import { ViewState, UserRole, EvaluationResult, CandidateProfile, DifficultyLevel } from './types';
-import { CheckCircle, AlertCircle, Code, ArrowLeft, ArrowRight, Award, ShieldCheck, Share2, Copy, Github, Download, ExternalLink } from 'lucide-react';
+import { CheckCircle, AlertCircle, Code, ArrowLeft, ArrowRight, Award, ShieldCheck, Share2, Copy, Github, Download, ExternalLink, X, Sparkles, Building2 } from 'lucide-react';
 import { ToastProvider, useToast } from './lib/toast';
 import { celebrateSuccess } from './lib/confetti';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Mock logged-in candidate
 const MOCK_PROFILE: CandidateProfile = {
@@ -33,6 +38,12 @@ function AppContent() {
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile>(MOCK_PROFILE);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+
+  // New state for integrated components
+  const [showCertificateBadge, setShowCertificateBadge] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
+  const [showVideoAnalyzer, setShowVideoAnalyzer] = useState(false);
+  const [showEnterpriseDashboard, setShowEnterpriseDashboard] = useState(false);
 
   // Update profile when user changes
   useEffect(() => {
@@ -90,8 +101,7 @@ function AppContent() {
   const handleStartAssessment = (skill?: string) => {
     if (skill) {
       setSelectedSkill(skill);
-      // Instead of going directly to assessment, go to difficulty selection
-      setCurrentView(ViewState.SKILL_SELECTION); // Or create a new ViewState for Difficulty if preferred, but we can re-use logic
+      setCurrentView(ViewState.SKILL_SELECTION);
     } else {
       setCurrentView(ViewState.SKILL_SELECTION);
     }
@@ -117,6 +127,17 @@ function AppContent() {
         certifications: [...prev.certifications, result.certificationHash!]
       }));
 
+      // Create certificate data for badge display
+      setSelectedCertificate({
+        recipientName: candidateProfile.name,
+        skill: selectedSkill,
+        score: result.score,
+        difficulty: selectedDifficulty,
+        issuedAt: new Date(),
+        blockchainHash: result.certificationHash,
+        certificateId: `cert-${Date.now()}`
+      });
+
       // Celebrate with confetti!
       celebrateSuccess();
       toast.success(`🎉 Congratulations! You scored ${result.score}/100 on ${selectedSkill}!`);
@@ -127,7 +148,11 @@ function AppContent() {
     }
   };
 
-
+  const handleViewCertificate = () => {
+    if (selectedCertificate) {
+      setShowCertificateBadge(true);
+    }
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(`https://lune.platform/verify/${assessmentResult?.certificationHash}`);
@@ -295,16 +320,31 @@ function AppContent() {
             </div>
 
             {assessmentResult.passed && (
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <button onClick={handleCopyLink} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">
-                  <Copy size={16} /> Copy Link
-                </button>
-                <button onClick={handleShare} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">
-                  <Share2 size={16} /> Share
-                </button>
-                <button className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-black text-white text-sm font-bold hover:bg-gray-800">
-                  <Github size={16} /> Add to GitHub Profile
-                </button>
+              <div className="space-y-3 mt-4">
+                {/* View Certificate Badge Button */}
+                {selectedCertificate && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleViewCertificate}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold hover:opacity-90 transition"
+                  >
+                    <Sparkles size={18} />
+                    View NFT Badge
+                  </motion.button>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={handleCopyLink} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">
+                    <Copy size={16} /> Copy Link
+                  </button>
+                  <button onClick={handleShare} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">
+                    <Share2 size={16} /> Share
+                  </button>
+                  <button className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-black text-white text-sm font-bold hover:bg-gray-800">
+                    <Github size={16} /> Add to GitHub Profile
+                  </button>
+                </div>
               </div>
             )}
 
@@ -330,6 +370,7 @@ function AppContent() {
           onStartAssessment={handleStartAssessment}
           onLogout={handleLogout}
           onUpdateProfile={(updates) => setCandidateProfile(prev => ({ ...prev, ...updates }))}
+          onOpenVideoAnalyzer={() => setShowVideoAnalyzer(true)}
         />
       )}
 
@@ -342,7 +383,10 @@ function AppContent() {
       {currentView === ViewState.ASSESSMENT_RESULT && renderResult()}
 
       {currentView === ViewState.EMPLOYER_DASHBOARD && (
-        <EmployerDashboard onLogout={handleLogout} />
+        <EmployerDashboard
+          onLogout={handleLogout}
+          onOpenEnterpriseDashboard={() => setShowEnterpriseDashboard(true)}
+        />
       )}
 
       {/* Auth Modal */}
@@ -352,6 +396,96 @@ function AppContent() {
         initialMode={authModalMode}
         onSuccess={handleAuthSuccess}
       />
+
+      {/* Certificate Badge Modal */}
+      <AnimatePresence>
+        {showCertificateBadge && selectedCertificate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCertificateBadge(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative"
+            >
+              <button
+                onClick={() => setShowCertificateBadge(false)}
+                className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition z-10"
+              >
+                <X size={20} />
+              </button>
+              <CertificateBadge
+                certificate={selectedCertificate}
+                onClose={() => setShowCertificateBadge(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Video Analyzer Modal */}
+      <AnimatePresence>
+        {showVideoAnalyzer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+            onClick={() => setShowVideoAnalyzer(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-2xl w-full my-8"
+            >
+              <button
+                onClick={() => setShowVideoAnalyzer(false)}
+                className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition z-10"
+              >
+                <X size={20} />
+              </button>
+              <VideoAnalyzer
+                onAnalysisComplete={(result) => {
+                  toast.success(`Video analyzed! Overall score: ${result.overallScore}/100`);
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Enterprise Dashboard Full Screen */}
+      <AnimatePresence>
+        {showEnterpriseDashboard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-gray-50"
+          >
+            <button
+              onClick={() => setShowEnterpriseDashboard(false)}
+              className="fixed top-4 right-4 z-50 bg-white rounded-full p-3 shadow-lg hover:bg-gray-100 transition flex items-center gap-2"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Back to Dashboard</span>
+            </button>
+            <EnterpriseDashboard
+              companyId={user?.id || 'demo-company'}
+              companyName={user?.name ? `${user.name}'s Company` : 'Demo Enterprise'}
+              onBack={() => setShowEnterpriseDashboard(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

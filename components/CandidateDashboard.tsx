@@ -11,6 +11,7 @@ interface CandidateDashboardProps {
    onStartAssessment: (skill?: string) => void;
    onLogout: () => void;
    onUpdateProfile: (profile: Partial<CandidateProfile>) => void;
+   onOpenVideoAnalyzer?: () => void;
 }
 
 const AVAILABLE_ASSESSMENTS = {
@@ -19,7 +20,7 @@ const AVAILABLE_ASSESSMENTS = {
    'Cloud & DevOps': ['AWS', 'Docker', 'Kubernetes', 'Terraform']
 };
 
-export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidate, onStartAssessment, onLogout, onUpdateProfile }) => {
+export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidate, onStartAssessment, onLogout, onUpdateProfile, onOpenVideoAnalyzer }) => {
    const toast = useToast();
    const [activeTab, setActiveTab] = useState<'overview' | 'interview'>('overview');
    const [recommendations, setRecommendations] = useState<{
@@ -192,6 +193,17 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
                               accept="video/*"
                               onChange={handleVideoUpload}
                            />
+                           {/* AI Video Analyzer Button */}
+                           {onOpenVideoAnalyzer && (
+                              <motion.button
+                                 whileHover={{ scale: 1.02 }}
+                                 whileTap={{ scale: 0.98 }}
+                                 onClick={onOpenVideoAnalyzer}
+                                 className="mt-3 text-purple-600 text-xs font-bold flex items-center justify-center gap-2 mx-auto hover:bg-purple-50 px-4 py-2 rounded-full transition border border-purple-100 bg-purple-50/50"
+                              >
+                                 <Sparkles size={14} /> Analyze with AI
+                              </motion.button>
+                           )}
                         </div>
 
                         {/* Profile Metadata Grid */}
