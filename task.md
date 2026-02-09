@@ -25,4 +25,4 @@
 - [x] **Code Cleanup**: Remove API keys from frontend and finalize backend proxy
 - [x] **Git Init**: Initialized repository and committed all files (Ready to Push)
 - [x] **Fix Build**: Downgraded React to v18.3.1 to resolve `npm ci` peer dependency errors
-- [x] **Fix Startup Crash**: Patched `supabaseService` to handle missing env vars gracefully (fixes Healthcheck)
+- [x] **Fix Startup Crash**: Patched `supabaseService` and `geminiService` to handle missing env vars gracefully (fixes Healthcheck)
