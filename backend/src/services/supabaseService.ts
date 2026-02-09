@@ -1,19 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '../utils/logger';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables');
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    logger.error('CRITICAL: Missing Supabase environment variables! Database operations will fail.');
 }
 
 // Client for user-authenticated requests
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Admin client for service-level operations (bypasses RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 logger.info('Supabase client initialized');
 
