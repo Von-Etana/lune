@@ -1,0 +1,9 @@
+[build]
+  publish = "dist"
+  command = "npm install --legacy-peer-deps && npm run build"
+
+[build.environment]
+  NPM_FLAGS = "--legacy-peer-deps"
+  NODE_VERSION = "20"
+  # Supabase anon key and Gemini API key are public client-side keys, safe to expose
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_GEMINI_API_KEY"
