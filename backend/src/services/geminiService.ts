@@ -2,11 +2,10 @@ import { GoogleGenAI, Type } from '@google/genai';
 import NodeCache from 'node-cache';
 import { logger } from '../utils/logger';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
+const apiKey = process.env.GEMINI_API_KEY || 'placeholder_key';
 
-if (!apiKey) {
-    logger.error('GEMINI_API_KEY not set in environment variables');
-    throw new Error('GEMINI_API_KEY is required');
+if (!process.env.GEMINI_API_KEY) {
+    logger.error('CRITICAL: GEMINI_API_KEY not set in environment variables! AI features will fail.');
 }
 
 const ai = new GoogleGenAI({ apiKey });
