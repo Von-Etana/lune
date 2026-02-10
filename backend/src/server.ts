@@ -18,7 +18,10 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+        'http://localhost:5173',
+        'https://luneapp.netlify.app'
+    ],
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
