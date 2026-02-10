@@ -163,6 +163,16 @@ function AppContent() {
         setShowWelcomeBanner(true);
       }
 
+      // Session restore on page refresh: if user is authenticated but still on LANDING,
+      // redirect to their dashboard automatically
+      if (currentView === ViewState.LANDING) {
+        if (user.role === 'employer') {
+          setCurrentView(ViewState.EMPLOYER_DASHBOARD);
+        } else {
+          setCurrentView(ViewState.CANDIDATE_DASHBOARD);
+        }
+      }
+
       // Initialize onboarding service for this user
       onboardingService.setUserId(user.id);
 

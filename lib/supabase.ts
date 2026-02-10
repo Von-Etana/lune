@@ -1,22 +1,12 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+// Re-export from the central AuthContext to avoid multiple GoTrueClient instances
+import { supabase as authSupabase } from '../contexts/AuthContext';
 
-// Vite requires import.meta.env for client-side env vars
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || '';
+// Export the single shared client instance
+export const supabase = authSupabase;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing Supabase environment variables. Check your .env file.');
-}
-
-// Client for user-authenticated requests
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-
-// Admin client for service-level operations (bypasses RLS)
-export const supabaseAdmin: SupabaseClient = createClient(
-    supabaseUrl,
-    supabaseServiceKey || supabaseAnonKey
-);
+// Note: supabaseAdmin should NOT be used on the frontend in production.
+// All admin operations should go through the backend API.
+export const supabaseAdmin = authSupabase;
 
 // Database Types
 export interface Database {

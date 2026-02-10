@@ -1,7 +1,16 @@
 import { AssessmentContent, Job, RecommendedCertification, InterviewFeedback, DifficultyLevel, AssessmentType, SkillCategory } from "../types";
 
 // Backend API URL for proxied Gemini calls
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// In production, VITE_API_URL must be set to the deployed backend URL
+const API_URL = import.meta.env.VITE_API_URL || (
+  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? '' // Will cause fetch to fail with a clear error rather than silently hitting localhost
+    : 'http://localhost:3001/api'
+);
+
+if (!import.meta.env.VITE_API_URL && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+  console.error('CRITICAL: VITE_API_URL is not set! AI features will not work. Set this environment variable to your deployed backend URL (e.g., https://lune-backend.onrender.com/api)');
+}
 
 // Skill to Category Mapping (static helper)
 const SKILL_CATEGORY_MAP: Record<string, SkillCategory> = {

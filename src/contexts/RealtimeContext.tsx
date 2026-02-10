@@ -22,20 +22,20 @@ export const RealtimeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const toast = useToast();
 
     useEffect(() => {
-        // Check connection status
+        // Single connection check on mount with a short timeout
         const checkConnection = async () => {
             try {
-                const { data, error } = await supabase.from('users').select('count').limit(1);
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 3000);
+                const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+                clearTimeout(timeout);
                 setIsConnected(!error);
-            } catch (error) {
+            } catch {
                 setIsConnected(false);
             }
         };
 
         checkConnection();
-        const interval = setInterval(checkConnection, 30000); // Check every 30s
-
-        return () => clearInterval(interval);
     }, []);
 
     const subscribe = (table: string, callback: (update: RealtimeUpdate) => void) => {

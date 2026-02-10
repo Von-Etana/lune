@@ -1,12 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+// Re-export from the central AuthContext to avoid multiple GoTrueClient instances
+import { supabase } from '../../contexts/AuthContext';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase credentials not found in environment variables');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
+export { supabase };
 export default supabase;
