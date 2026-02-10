@@ -117,7 +117,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const cachedProfile = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
             if (cachedProfile) {
                 try {
-                    return JSON.parse(cachedProfile);
+                    const parsedFn = JSON.parse(cachedProfile);
+                    // Only use cache if it matches the current session user
+                    if (parsedFn.id === supabaseSession.user.id) {
+                        return parsedFn;
+                    }
                 } catch {
                     // Invalid cached profile, use metadata
                 }
