@@ -56,6 +56,26 @@ app.use(errorHandler);
 app.listen(PORT, () => {
     logger.info(`🚀 Lune Backend Server running on port ${PORT}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+    // Keep-alive: ping own health endpoint every 13 minutes
+    // Prevents Render free tier from spinning down after 15 min of inactivity
+    if (process.env.NODE_ENV === 'production') {
+        const KEEP_ALIVE_INTERVAL = 13 * 60 * 1000; // 13 minutes
+        const selfUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+
+        setInterval(async () => {
+            try {
+                const res = await fetch(`${selfUrl}/health`);
+                if (res.ok) {
+                    logger.info('Keep-alive ping successful');
+                }
+            } catch (err) {
+                logger.warn('Keep-alive ping failed (server may be restarting)');
+            }
+        }, KEEP_ALIVE_INTERVAL);
+
+        logger.info(`Keep-alive enabled: pinging ${selfUrl}/health every 13 minutes`);
+    }
 });
 
 export default app;
