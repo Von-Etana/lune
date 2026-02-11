@@ -23,6 +23,24 @@ const withTimeout = <T>(promise: Promise<T>, ms = 25000): Promise<T> => {
 };
 
 /**
+ * Quick diagnostic: test Gemini API key
+ * GET /api/ai/test-key
+ */
+router.get('/test-key', async (req: Request, res: Response) => {
+    try {
+        if (!apiKey) return res.json({ status: 'error', message: 'GEMINI_API_KEY not set' });
+        const response = await withTimeout(ai.models.generateContent({
+            model: modelId,
+            contents: 'Say "hello" in one word. Output JSON: {"reply":"hello"}',
+            config: { responseMimeType: "application/json" }
+        }));
+        res.json({ status: 'ok', model: modelId, keyPrefix: apiKey.substring(0, 8) + '...', response: response.text });
+    } catch (error: any) {
+        res.json({ status: 'error', model: modelId, keyPrefix: apiKey.substring(0, 8) + '...', error: error.message });
+    }
+});
+
+/**
  * Generate Scenario-Based Assessment (Public endpoint for frontend)
  * POST /api/ai/generate-scenario
  * This proxies the Gemini API call to avoid CORS issues in the browser
@@ -301,8 +319,8 @@ router.post('/generate-assessment', async (req: Request, res: Response) => {
         throw new Error('No response');
 
     } catch (error: any) {
-        logger.error('Technical assessment generation error', { error: error.message });
-        res.status(500).json({ error: 'Failed to generate assessment' });
+        logger.error('Technical assessment generation error', { error: error.message, stack: error.stack });
+        res.status(500).json({ error: 'Failed to generate assessment', details: error.message });
     }
 });
 
