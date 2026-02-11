@@ -522,7 +522,14 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
                 setCurrentQuestionIndex(prev => prev + 1);
             }
         } else {
-            // Last question - check all questions answered before submit
+            // Last situational question
+            // If there's an oral task, go there. usage of 'submitting' step is ONLY for after oral.
+            if (content.oralResponseTask) {
+                setStep('oral');
+                return;
+            }
+
+            // If no oral task (unlikely per new prompt), validate and submit
             const unanswered = getAllUnansweredQuestions();
             if (unanswered.length > 0) {
                 setActiveAlert(`Please answer all questions before submitting. Unanswered: Question(s) ${unanswered.join(', ')}`);

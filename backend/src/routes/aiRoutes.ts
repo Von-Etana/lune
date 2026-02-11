@@ -7,7 +7,7 @@ const router = Router();
 // Initialize Gemini AI
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
-const modelId = 'gemini-2.0-flash-lite';
+const modelId = 'gemini-2.0-flash';
 
 // Log API key status on load
 logger.info(`Gemini AI initialized: key=${apiKey ? 'SET' : 'MISSING'}, model=${modelId}`);
@@ -112,17 +112,17 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
             Unique Session ID: ${uniqueId}
             Assigned themes (one per question): ${selectedThemes.join(', ')}
             
-            Generate EXACTLY 12 questions:
-            1. ONE optional multiple choice question (id: 1)
-            2. TEN situational written tasks (ids: 2-11) - each using a different assigned theme
-            3. ONE oral response task (id: 12)
+            STRICT OUTPUT REQUIREMENT: Generate EXACTLY 12 questions in this order:
+            1. ONE (1) multiple choice question (id: 1) - to test foundational knowledge.
+            2. TEN (10) situational written tasks (ids: 2-11) - each using a different assigned theme. These must be challenging and relevant to the ${difficulty} level.
+            3. ONE (1) oral response task (id: 12) - a complex scenario requiring a verbal explanation.
             
-            For each situational question, provide:
-            - id, scenario (detailed context), question (what they need to do)
+            For each situational/MC question, provide:
+            - id, scenario (detailed context 2-3 sentences), question (what they need to do)
             - options (4 choices for MC) or isOpenEnded: true for written
             - taskType describing the theme
             
-            Output JSON with: title, description, difficulty, roleContext, situationalQuestions array, oralResponseTask object
+            Output JSON with: title, description, difficulty, roleContext, situationalQuestions array (length 11), oralResponseTask object
         `;
 
         logger.info('Generating scenario assessment', { skill, difficulty, uniqueId });
@@ -426,14 +426,18 @@ router.post('/evaluate-scenario', async (req: Request, res: Response) => {
         const prompt = `
             Evaluate ${skill} role assessment (Scenario Context: ${assessmentContent.roleContext}).
             
-            Questions and Answers:
+            1. written/MC Questions and Answers:
             ${assessmentContent.situationalQuestions.map((q: any) => `
                 Task ${q.id}: ${q.scenario}
                 Question: ${q.question}
                 Answer: ${responses.situationalAnswers[q.id] || 'No answer'}
             `).join('\n')}
+
+            2. Oral Response Analysis:
+            Context: ${assessmentContent.oralResponseTask?.prompt || 'Oral Task'}
+            Transcript: "${responses.oralResponseTranscript || 'No oral response provided'}"
             
-            Evaluate on: Problem Solving, Communication, Role Knowledge, Customer Focus, Professionalism (0-100).
+            Evaluate on: Problem Solving, Communication (especially based on oral transcript), Role Knowledge, Customer Focus, Professionalism (0-100).
             Provide weighted score (0-100) and feedback.
         `;
 
