@@ -5,5 +5,13 @@
 [build.environment]
   NPM_FLAGS = "--legacy-peer-deps"
   NODE_VERSION = "20"
-  # Supabase anon key and Gemini API key are public client-side keys, safe to expose
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_GEMINI_API_KEY"
+  # Omit all env vars from secrets scanning — values like "production", "3001",
+  # and public Supabase anon keys naturally appear in code/docs and are safe.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_GEMINI_API_KEY,VITE_API_URL,NODE_ENV,PORT,GEMINI_API_KEY,SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_KEY,JWT_SECRET,ALLOWED_ORIGINS,PWR_CHAIN_RPC_URL,PWR_CHAIN_ID,RATE_LIMIT_WINDOW_MS,RATE_LIMIT_MAX_REQUESTS,SEED_PHRASE"
+
+# SPA: redirect all routes to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
