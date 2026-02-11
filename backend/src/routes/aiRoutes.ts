@@ -275,43 +275,30 @@ router.post('/generate-assessment', async (req: Request, res: Response) => {
         const industry = industries[Math.floor(Math.random() * industries.length)];
 
         const prompt = `
-            Generate a UNIQUE and ORIGINAL technical skill assessment for a ${skillName} role.
+            Generate a UNIQUE technical skill assessment for ${skillName}.
             Session ID: ${uniqueId}
-            Industry Context: ${industry}
+            Industry: ${industry}
             Difficulty: ${difficulty}
             
-            Include:
-            1. A coding challenge (title, description, starter code) relevant to ${industry}.
-            2. Two deep theoretical multiple choice questions.
-            
-            Output JSON format with title, description, difficulty, starterCode, theoryQuestions array.
+            Return JSON with exactly this structure:
+            {
+              "title": "assessment title",
+              "description": "brief description",
+              "difficulty": "${difficulty}",
+              "starterCode": "// starter code here",
+              "theoryQuestions": [
+                {"id": 1, "question": "...", "options": ["A", "B", "C", "D"]},
+                {"id": 2, "question": "...", "options": ["A", "B", "C", "D"]},
+                {"id": 3, "question": "...", "options": ["A", "B", "C", "D"]}
+              ]
+            }
         `;
 
         const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        title: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        difficulty: { type: Type.STRING },
-                        starterCode: { type: Type.STRING },
-                        theoryQuestions: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    id: { type: Type.INTEGER },
-                                    question: { type: Type.STRING },
-                                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                }
-                            }
-                        }
-                    }
-                }
+                responseMimeType: "application/json"
             }
         }));
 
