@@ -7,7 +7,7 @@ const router = Router();
 // Initialize Gemini AI
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
-const modelId = 'gemini-2.0-flash';
+const modelId = 'gemini-1.5-flash';
 
 // Log API key status on load
 logger.info(`Gemini AI initialized: key=${apiKey ? 'SET' : 'MISSING'}, model=${modelId}`);
