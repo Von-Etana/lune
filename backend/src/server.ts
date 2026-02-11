@@ -17,12 +17,29 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet()); // Security headers
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://luneapp.netlify.app',
+    'https://lunetalent.netlify.app'
+];
+
+// Add specific allowed origins from env if present
+if (process.env.ALLOWED_ORIGINS) {
+    allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(','));
+}
+
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
-        'http://localhost:5173',
-        'https://luneapp.netlify.app',
-        'https://lunetalent.netlify.app'
-    ],
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            logger.warn(`Blocked by CORS: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
