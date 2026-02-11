@@ -20,7 +20,8 @@ app.use(helmet()); // Security headers
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || [
         'http://localhost:5173',
-        'https://luneapp.netlify.app'
+        'https://luneapp.netlify.app',
+        'https://lunetalent.netlify.app'
     ],
     credentials: true
 }));
