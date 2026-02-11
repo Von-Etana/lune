@@ -12,8 +12,6 @@ services:
         value: "18"
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "3001"
       # Supabase
       - key: SUPABASE_URL
         sync: false
