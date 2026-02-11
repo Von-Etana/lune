@@ -7,7 +7,20 @@ const router = Router();
 // Initialize Gemini AI
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
-const modelId = 'gemini-2.5-flash';
+const modelId = 'gemini-2.0-flash';
+
+// Log API key status on load
+logger.info(`Gemini AI initialized: key=${apiKey ? 'SET' : 'MISSING'}, model=${modelId}`);
+
+// Timeout wrapper for Gemini calls (25 seconds)
+const withTimeout = <T>(promise: Promise<T>, ms = 25000): Promise<T> => {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`Gemini API timed out after ${ms / 1000}s`)), ms)
+        ),
+    ]);
+};
 
 /**
  * Generate Scenario-Based Assessment (Public endpoint for frontend)
@@ -92,7 +105,7 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
 
         logger.info('Generating scenario assessment', { skill, difficulty, uniqueId });
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
@@ -131,7 +144,7 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
                     }
                 }
             }
-        });
+        }));
 
         if (response.text) {
             const result = JSON.parse(response.text);
@@ -206,14 +219,14 @@ router.post('/generate-passport', async (req: Request, res: Response, next: Next
             - opportunities (array of job matches with title, company, matchScore, reason)
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
                 temperature: 0.7,
                 responseMimeType: "application/json"
             }
-        });
+        }));
 
         if (response.text) {
             const result = JSON.parse(response.text);
@@ -256,7 +269,7 @@ router.post('/generate-assessment', async (req: Request, res: Response) => {
             Output JSON format with title, description, difficulty, starterCode, theoryQuestions array.
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
@@ -282,7 +295,7 @@ router.post('/generate-assessment', async (req: Request, res: Response) => {
                     }
                 }
             }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
@@ -312,7 +325,7 @@ router.post('/evaluate-submission', async (req: Request, res: Response) => {
             Return JSON with weighted total score (0-100) and concise feedback.
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
@@ -326,7 +339,7 @@ router.post('/evaluate-submission', async (req: Request, res: Response) => {
                     required: ["score", "feedback"]
                 }
             }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
@@ -355,7 +368,7 @@ router.post('/analyze-cheating', async (req: Request, res: Response) => {
             Output JSON: isCheating (boolean), reason (string).
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
@@ -368,7 +381,7 @@ router.post('/analyze-cheating', async (req: Request, res: Response) => {
                     }
                 }
             }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
@@ -402,7 +415,7 @@ router.post('/evaluate-scenario', async (req: Request, res: Response) => {
             Provide weighted score (0-100) and feedback.
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
@@ -426,7 +439,7 @@ router.post('/evaluate-scenario', async (req: Request, res: Response) => {
                     }
                 }
             }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
@@ -452,7 +465,7 @@ router.post('/career-recommendations', async (req: Request, res: Response) => {
             Output JSON: { certifications: [], jobs: [] }
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
@@ -490,7 +503,7 @@ router.post('/career-recommendations', async (req: Request, res: Response) => {
                     }
                 }
             }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
@@ -516,11 +529,11 @@ router.post('/match-candidates', async (req: Request, res: Response) => {
             Rank candidates by fit. Return list of { candidateId, matchReason, score }.
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt, // Output schema implied as array
             config: { responseMimeType: "application/json" }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
@@ -542,11 +555,11 @@ router.post('/interview-question', async (req: Request, res: Response) => {
 
         const prompt = `Generate a challenging ${topic} interview question for a ${role}. Output JSON { question: string }`;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: { responseMimeType: "application/json" }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
@@ -572,7 +585,7 @@ router.post('/evaluate-interview', async (req: Request, res: Response) => {
             Evaluate on Clarity, Confidence, Relevance (0-100). Provide feedback and improvedAnswer.
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await withTimeout(ai.models.generateContent({
             model: modelId,
             contents: prompt,
             config: {
@@ -588,7 +601,7 @@ router.post('/evaluate-interview', async (req: Request, res: Response) => {
                     }
                 }
             }
-        });
+        }));
 
         if (response.text) return res.json(JSON.parse(response.text));
         throw new Error('No response');
