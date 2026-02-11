@@ -13,7 +13,7 @@ const modelId = 'gemini-2.0-flash';
 logger.info(`Gemini AI initialized: key=${apiKey ? 'SET' : 'MISSING'}, model=${modelId}`);
 
 // Timeout wrapper for Gemini calls (25 seconds)
-const withTimeout = <T>(promise: Promise<T>, ms = 25000): Promise<T> => {
+const withTimeout = <T>(promise: Promise<T>, ms = 55000): Promise<T> => {
     return Promise.race([
         promise,
         new Promise<T>((_, reject) =>
