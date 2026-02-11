@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 .from('users')
                 .select('id, email, name, role')
                 .eq('id', supabaseSession.user.id)
-                .single();
+                .maybeSingle();
 
             // Add 5-second timeout
             const timeoutPromise = new Promise<{ data: null; error: Error }>((_, reject) =>

@@ -1,0 +1,83 @@
+/// <reference lib="webworker" />
+
+const CACHE_NAME = 'lune-cache-v1';
+const RUNTIME_CACHE = 'lune-runtime-v1';
+
+// Static assets to cache on install
+const STATIC_ASSETS = [
+    '/',
+    '/index.html',
+    '/manifest.json',
+];
+
+// Install event - cache static assets
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            console.log('[ServiceWorker] Pre-caching static assets');
+            return cache.addAll(STATIC_ASSETS);
+        })
+    );
+    // Take control immediately
+    self.skipWaiting();
+});
+
+// Activate event - clean up old caches
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames
+                    .filter((cacheName) => {
+                        return cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE;
+                    })
+                    .map((cacheName) => {
+                        console.log('[ServiceWorker] Deleting old cache:', cacheName);
+                        return caches.delete(cacheName);
+                    })
+            );
+        })
+    );
+    // Take control of all clients immediately
+    self.clients.claim();
+});
+
+// Fetch event - serve from cache, fallback to network
+self.addEventListener('fetch', (event) => {
+    const { request } = event;
+    const url = new URL(request.url);
+
+    // Skip non-GET requests
+    if (request.method !== 'GET') {
+        return;
+    }
+
+    // Skip cross-origin requests (except for CDN assets)
+    if (url.origin !== location.origin && !url.hostname.includes('supabase')) {
+        return;
+    }
+
+    // Skip API requests - always fetch fresh
+    if (url.pathname.startsWith('/api/')) {
+        return;
+    }
+
+    // Network First strategy
+    event.respondWith(
+        fetch(request)
+            .then((response) => {
+                // If valid response, clone and cache
+                if (response && response.status === 200 && response.type === 'basic') {
+                    const responseClone = response.clone();
+                    caches.open(RUNTIME_CACHE).then((cache) => {
+                        cache.put(request, responseClone);
+                    });
+                }
+                return response;
+            })
+            .catch(() => {
+                // Network failed, try cache
+                return caches.match(request);
+            })
+    );
+});
