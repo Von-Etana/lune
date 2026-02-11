@@ -22,6 +22,10 @@ const withTimeout = <T>(promise: Promise<T>, ms = 55000): Promise<T> => {
     ]);
 };
 
+// Simple in-memory cache for generated assessments
+const assessmentCache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
 /**
  * Quick diagnostic: test Gemini API key
  * GET /api/ai/test-key
@@ -270,6 +274,14 @@ router.post('/generate-assessment', async (req: Request, res: Response) => {
         const { skillName, difficulty } = req.body;
         if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'AI service not configured' });
 
+        // Check cache first
+        const cacheKey = `assessment-${skillName}-${difficulty}`;
+        const cached = assessmentCache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+            logger.info('Serving cached assessment', { skillName, difficulty });
+            return res.json(cached.data);
+        }
+
         const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
         const industries = ['Fintech', 'E-commerce', 'Healthcare', 'Social Media', 'IoT', 'Logistics', 'EdTech', 'Travel', 'Real Estate', 'Gaming'];
         const industry = industries[Math.floor(Math.random() * industries.length)];
@@ -302,7 +314,12 @@ router.post('/generate-assessment', async (req: Request, res: Response) => {
             }
         }));
 
-        if (response.text) return res.json(JSON.parse(response.text));
+        if (response.text) {
+            const data = JSON.parse(response.text);
+            // Cache the result
+            assessmentCache.set(cacheKey, { data, timestamp: Date.now() });
+            return res.json(data);
+        }
         throw new Error('No response');
 
     } catch (error: any) {
