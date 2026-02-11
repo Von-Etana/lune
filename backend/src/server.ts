@@ -22,7 +22,7 @@ app.use(cors({
         'http://localhost:5173',
         'https://lune-app.netlify.app',
         'https://lunetalent.netlify.app',
-        'https://lune-backend.onrender.com'
+        'https://lune-cyjz.onrender.com'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
