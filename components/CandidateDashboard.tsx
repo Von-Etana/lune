@@ -610,12 +610,16 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
                                  whileTap={{ scale: 0.98 }}
                                  onClick={handleMintPassport}
                                  disabled={isMintingPassport || Object.keys(candidate.skills).length === 0}
-                                 className="w-full bg-white text-orange-600 px-4 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                                 className="w-full bg-white text-orange px-4 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition shadow-lg disabled:opacity-60 disabled:cursor-not-allowed hover:bg-gray-50"
                               >
                                  {isMintingPassport ? (
-                                    <><Loader className="animate-spin" size={16} /> Minting to Blockchain...</>
+                                    <span className="flex items-center gap-2">
+                                       <Loader className="animate-spin" size={16} /> Minting to Blockchain...
+                                    </span>
                                  ) : (
-                                    <><Shield size={16} /> Mint Skill Passport</>
+                                    <span className="flex items-center gap-2">
+                                       <Shield size={16} /> Mint Skill Passport
+                                    </span>
                                  )}
                               </motion.button>
                               {Object.keys(candidate.skills).length === 0 && (
@@ -693,7 +697,7 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
                         {/* Results */}
                         {Object.keys(filteredAssessments).length > 0 ? (
                            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                              {Object.entries(filteredAssessments).map(([category, skills]) => (
+                              {Object.entries(filteredAssessments).map(([category, skills]: [string, string[]]) => (
                                  <div key={category}>
                                     <h5 className="text-xs font-bold text-slate-800 mb-2">{category}</h5>
                                     <div className="flex flex-wrap gap-2">

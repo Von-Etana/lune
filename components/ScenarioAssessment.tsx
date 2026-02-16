@@ -398,6 +398,9 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
     }, [timerActive]);
 
 
+    // Speech Recognition Ref
+    const speechRecognitionRef = useRef<any>(null);
+
     // Audio Recording Functions
     const startRecording = async () => {
         try {
@@ -414,18 +417,42 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
                 const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 setAudioBlob(blob);
                 setAudioUrl(URL.createObjectURL(blob));
-
-                // Attempt speech-to-text (Web Speech API)
-                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                    transcribeAudio(blob);
-                }
-
                 stream.getTracks().forEach(track => track.stop());
             };
 
             mediaRecorder.start();
             setIsRecording(true);
             setRecordingTime(0);
+
+            // Start Speech Recognition (Real-time)
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = (event: any) => {
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        }
+                    }
+                    if (finalTranscript) {
+                        setOralTranscript(prev => prev + ' ' + finalTranscript);
+                    }
+                };
+
+                recognition.onerror = (event: any) => {
+                    console.error('Speech recognition error', event.error);
+                };
+
+                recognition.start();
+                speechRecognitionRef.current = recognition;
+            } else {
+                setOralTranscript("(Speech recognition not supported in this browser. Please ensure your response is clear.)");
+            }
 
             // Recording timer
             const recordTimer = setInterval(() => {
@@ -435,8 +462,7 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
             // Auto-stop after max duration (90 seconds)
             setTimeout(() => {
                 if (mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                    setIsRecording(false);
+                    stopRecording();
                     clearInterval(recordTimer);
                 }
             }, 90000);
@@ -453,13 +479,13 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
             mediaRecorderRef.current.stop();
             setIsRecording(false);
         }
+        if (speechRecognitionRef.current) {
+            speechRecognitionRef.current.stop();
+            speechRecognitionRef.current = null;
+        }
     };
 
-    const transcribeAudio = async (blob: Blob) => {
-        // Use Web Speech API for real-time transcription as a placeholder
-        // In production, you'd send this to a proper speech-to-text service
-        setOralTranscript("(Audio recorded - transcription will be processed during evaluation)");
-    };
+    // Removed placeholder transcribeAudio function as it's now handled in real-time
 
 
     const formatTime = (seconds: number): string => {

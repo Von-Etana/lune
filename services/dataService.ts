@@ -81,6 +81,8 @@ export const dataService = {
                     submitted_at
                 )
             `)
+            .order('verified', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(50);
 
         if (error) {

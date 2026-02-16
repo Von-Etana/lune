@@ -111,31 +111,39 @@ export const mintSkillPassport = async (
     version: "1.0"
   };
 
-  // Check for Web3 Wallet
-  if (typeof window !== 'undefined' && window.ethereum) {
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      console.log("Wallet Connected for Passport Minting:", address);
+  try {
+    // Check for Web3 Wallet
+    if (typeof window !== 'undefined' && window.ethereum) {
+      try {
+        // Ensure ethers is loaded
+        if (!ethers) throw new Error("Ethers.js library not loaded");
 
-      // Sign the passport data
-      const message = `Lune Skill Passport: Mint for ${candidateName}\n\nSkills: ${Object.keys(skills).join(', ')}\nCertifications: ${certifications.length}\nTimestamp: ${passportData.mintedAt}`;
-      const signature = await signer.signMessage(message);
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        console.log("Wallet Connected for Passport Minting:", address);
 
-      // Generate passport ID and transaction hash
-      const txHash = ethers.keccak256(ethers.toUtf8Bytes(signature + Date.now()));
-      const passportId = `LUNE-PASS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        // Sign the passport data
+        const message = `Lune Skill Passport: Mint for ${candidateName}\n\nSkills: ${Object.keys(skills).join(', ')}\nCertifications: ${certifications.length}\nTimestamp: ${passportData.mintedAt}`;
+        const signature = await signer.signMessage(message);
 
-      console.log("Skill Passport Minted:", { txHash, passportId });
-      return { txHash, passportId };
+        // Generate passport ID and transaction hash
+        const txHash = ethers.keccak256(ethers.toUtf8Bytes(signature + Date.now()));
+        const passportId = `LUNE-PASS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    } catch (error) {
-      console.error("Blockchain Error during passport minting:", error);
+        console.log("Skill Passport Minted:", { txHash, passportId });
+        return { txHash, passportId };
+
+      } catch (error) {
+        console.error("Blockchain Error during passport minting (falling back to mock):", error);
+        return mockMintPassport(candidateName);
+      }
+    } else {
+      console.warn("No Web3 Wallet detected. Falling back to Lune internal ledger for passport.");
       return mockMintPassport(candidateName);
     }
-  } else {
-    console.warn("No Web3 Wallet detected. Falling back to Lune internal ledger for passport.");
+  } catch (err) {
+    console.error("Unexpected error in mintSkillPassport:", err);
     return mockMintPassport(candidateName);
   }
 };
