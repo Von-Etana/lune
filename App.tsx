@@ -282,7 +282,8 @@ function AppContent() {
       result.cheatingDetected || false,
       result.integrityScore || 100,
       result.feedback,
-      result.categoryScores
+      result.categoryScores,
+      result.certificationHash
     );
 
     // Update local profile if passed - save skills regardless of certificate hash

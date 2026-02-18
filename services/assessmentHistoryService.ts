@@ -5,6 +5,7 @@
 
 import { DifficultyLevel } from '../types';
 import { getSkillCategory } from './geminiService';
+import { supabase } from '../lib/supabase';
 
 // Storage key for assessment history
 const HISTORY_STORAGE_KEY = 'lune_assessment_history';
@@ -24,6 +25,7 @@ export interface AssessmentHistoryEntry {
     integrityScore: number;
     feedback?: string;
     categoryScores?: Record<string, number>;
+    certificationHash?: string;
 }
 
 // Assessment trend data for visualization
@@ -99,9 +101,12 @@ export const addAssessmentEntry = (
     cheatingDetected: boolean = false,
     integrityScore: number = 100,
     feedback?: string,
-    categoryScores?: Record<string, number>
-): AssessmentHistoryEntry => {
+    categoryScores?: Record<string, number>,
+    certificationHash?: string
+): Promise<AssessmentHistoryEntry> => {
     const history = loadAssessmentHistory();
+    // Use user ID if available, otherwise candidate ID
+    const userId = (window as any).currentUser?.id || candidateId;
 
     const entry: AssessmentHistoryEntry = {
         id: `assessment_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -116,11 +121,78 @@ export const addAssessmentEntry = (
         cheatingDetected,
         integrityScore,
         feedback,
-        categoryScores
+        categoryScores,
+        certificationHash
     };
 
     history.push(entry);
     saveAssessmentHistory(history);
+
+    // Save to Supabase (Async - Fire & Forget)
+    (async () => {
+        try {
+            // 1. Insert submission
+            const { error: submissionError } = await supabase.from('assessment_submissions').insert({
+                user_id: candidateId,
+                skill,
+                score,
+                passed,
+                difficulty,
+                time_spent_seconds: timeSpentSeconds,
+                cheating_detected: cheatingDetected,
+                integrity_score: integrityScore,
+                feedback,
+                category_scores: categoryScores,
+                certification_hash: certificationHash // Optional in DB?
+            });
+
+            if (submissionError) console.error('Supabase submission error:', submissionError);
+
+            // 2. Update Candidate Profile (Skills & Certs) if passed
+            if (passed) {
+                // Fetch current profile first to append/merge
+                const { data: profile } = await supabase
+                    .from('candidate_profiles')
+                    .select('skills, certifications, verified')
+                    .eq('user_id', candidateId)
+                    .single();
+
+                if (profile) {
+                    const newSkills = { ...profile.skills, [skill]: score };
+
+                    let newCerts = profile.certifications || [];
+                    if (certificationHash) {
+                        // Store as JSON string if not already
+                        const certEntry = certificationHash.startsWith('{')
+                            ? certificationHash
+                            : JSON.stringify({
+                                hash: certificationHash,
+                                skill,
+                                date: new Date().toISOString()
+                            });
+
+                        // Avoid duplicates
+                        if (!newCerts.some((c: string) => c.includes(certificationHash))) {
+                            newCerts = [...newCerts, certEntry];
+                        }
+                    }
+
+                    const { error: profileError } = await supabase
+                        .from('candidate_profiles')
+                        .update({
+                            skills: newSkills,
+                            certifications: newCerts,
+                            verified: true // Mark as verified since they passed
+                        })
+                        .eq('user_id', candidateId);
+
+                    if (profileError) console.error('Supabase profile update error:', profileError);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to sync assessment to Supabase:', err);
+        }
+    })();
 
     return entry;
 };

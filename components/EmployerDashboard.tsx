@@ -94,11 +94,17 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
    const [profileForm, setProfileForm] = useState({ ...employerProfile });
 
    const handleVerify = async (hash: string) => {
-      if (!hash) return;
+      let cleanHash = hash;
+      try {
+         const parsed = JSON.parse(hash);
+         if (parsed.hash) cleanHash = parsed.hash;
+      } catch (e) { }
+
+      if (!cleanHash) return;
       setVerifyStatus('loading');
       setVerifyResult(null);
 
-      const details = await getCertificateDetails(hash);
+      const details = await getCertificateDetails(cleanHash);
       if (details) {
          setVerifyResult(details);
          setVerifyStatus('idle');
@@ -106,7 +112,7 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
          // Record verification event and create notification
          if (details.candidateId && details.candidateId !== 'unknown') {
             notificationService.recordVerificationEvent({
-               certificateHash: hash,
+               certificateHash: cleanHash,
                candidateId: details.candidateId,
                candidateName: details.candidateName,
                skill: details.skill,
@@ -1156,7 +1162,12 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                                        <button
                                           onClick={(e) => {
                                              e.stopPropagation();
-                                             setVerifyHash(candidate.certifications[0]);
+                                             let cert = candidate.certifications[0];
+                                             try {
+                                                const parsed = JSON.parse(cert);
+                                                if (parsed.hash) cert = parsed.hash;
+                                             } catch (e) { }
+                                             setVerifyHash(cert);
                                              setShowVerification(true);
                                           }}
                                           className="absolute top-4 left-4 bg-white/90 text-teal-700 p-2 rounded-lg hover:bg-white hover:scale-110 transition shadow-md"
