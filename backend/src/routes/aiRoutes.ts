@@ -117,8 +117,10 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
             2. TEN (10) situational written tasks (ids: 2-11) - each using a different assigned theme. These must be challenging and relevant to the ${difficulty} level.
             3. ONE (1) oral response task (id: 12) - a complex scenario requiring a verbal explanation.
             
+            IMPORTANT: Keep scenarios brief (1-2 sentences max). Keep questions concise.
+            
             For each situational/MC question, provide:
-            - id, scenario (detailed context 2-3 sentences), question (what they need to do)
+            - id, scenario (1-2 sentences), question (1 sentence)
             - options (4 choices for MC) or isOpenEnded: true for written
             - taskType describing the theme
             
@@ -132,9 +134,11 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
             contents: prompt,
             config: {
                 temperature: 0.95,
+                maxOutputTokens: 65536,
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
+                    required: ['title', 'description', 'difficulty', 'roleContext', 'situationalQuestions', 'oralResponseTask'],
                     properties: {
                         title: { type: Type.STRING },
                         description: { type: Type.STRING },
@@ -144,6 +148,7 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
                             type: Type.ARRAY,
                             items: {
                                 type: Type.OBJECT,
+                                required: ['id', 'scenario', 'question', 'taskType'],
                                 properties: {
                                     id: { type: Type.INTEGER },
                                     scenario: { type: Type.STRING },
@@ -157,6 +162,7 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
                         },
                         oralResponseTask: {
                             type: Type.OBJECT,
+                            required: ['prompt', 'evaluationCriteria', 'maxDurationSeconds'],
                             properties: {
                                 prompt: { type: Type.STRING },
                                 evaluationCriteria: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -171,7 +177,12 @@ router.post('/generate-scenario', async (req: Request, res: Response, next: Next
         if (response.text) {
             const result = JSON.parse(response.text);
             result.uniqueId = uniqueId;
-            logger.info('Scenario assessment generated successfully', { uniqueId });
+            logger.info('Scenario assessment generated successfully', {
+                uniqueId,
+                questionCount: result.situationalQuestions?.length,
+                hasOralTask: !!result.oralResponseTask,
+                responseLength: response.text.length
+            });
             return res.json(result);
         }
 
@@ -755,7 +766,7 @@ router.post('/analyze-video', async (req: Request, res: Response) => {
             ]
         }));
 
-        const text = response.text();
+        const text = response.text;
         if (text) {
             // Parse JSON from response
             const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -802,7 +813,7 @@ router.post('/execute-code', async (req: Request, res: Response) => {
             throw new Error(`Judge0 submission failed: ${submitResponse.statusText}`);
         }
 
-        const { token } = await submitResponse.json();
+        const { token } = await submitResponse.json() as any;
 
         // 2. Poll for results
         let attempts = 0;
@@ -820,7 +831,7 @@ router.post('/execute-code', async (req: Request, res: Response) => {
 
             if (!resultResponse.ok) continue;
 
-            const result = await resultResponse.json();
+            const result: any = await resultResponse.json();
 
             // Status ID >= 3 means finished (Accepted, Wrong Answer, Error, etc.)
             if (result.status.id >= 3) {
@@ -871,7 +882,7 @@ router.post('/generate-tips', async (req: Request, res: Response) => {
             contents: [{ role: 'user', parts: [{ text: prompt }] }]
         }));
 
-        const text = response.text();
+        const text = response.text;
         if (text) {
             const jsonMatch = text.match(/\[[\s\S]*\]/);
             if (jsonMatch) return res.json(JSON.parse(jsonMatch[0]));
