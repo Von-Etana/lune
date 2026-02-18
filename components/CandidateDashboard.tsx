@@ -125,7 +125,14 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
          const result = await mintSkillPassport(
             candidate.name,
             candidate.skills,
-            candidate.certifications.map(c => ({ skill: c }))
+            candidate.certifications.map(c => {
+               try {
+                  const parsed = JSON.parse(c);
+                  return { skill: parsed.skill, txHash: parsed.hash };
+               } catch (e) {
+                  return { skill: 'Verified Skill', txHash: c };
+               }
+            })
          );
          setPassportData(result);
          toast.success("🎉 Skill Passport minted successfully!");

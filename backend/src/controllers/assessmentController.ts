@@ -206,14 +206,29 @@ export const submitAssessment = async (
                 currentSkills[skillName] = newScore;
             }
 
-            // Add new cert hash if not already present
+            // Add new cert data if not already present
             const updates: any = {
                 skills: currentSkills,
                 verified: true
             };
 
-            if (!currentCerts.includes(txHash)) {
-                updates.certifications = [...currentCerts, txHash];
+            const newCertEntry = JSON.stringify({
+                hash: txHash,
+                skill: assessment.skills.name,
+                date: new Date().toISOString()
+            });
+
+            const hasCert = currentCerts.some((c: string) => {
+                try {
+                    const parsed = JSON.parse(c);
+                    return parsed.hash === txHash;
+                } catch {
+                    return c === txHash;
+                }
+            });
+
+            if (!hasCert) {
+                updates.certifications = [...currentCerts, newCertEntry];
             }
 
             await supabase

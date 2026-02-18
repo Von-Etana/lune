@@ -63,12 +63,27 @@ export const SkillPassport: React.FC<SkillPassportProps> = ({
             // Convert certifications
             const certs: CertificationItem[] = certifications.length > 0
                 ? certifications
-                : candidate.certifications.map(hash => ({
-                    skill: 'Verified Skill',
-                    score: 85,
-                    issuedAt: new Date().toISOString(),
-                    blockchainHash: hash
-                }));
+                : candidate.certifications.map(cert => {
+                    let skillName = 'Verified Skill';
+                    let hash: string = cert;
+                    let date = new Date().toISOString();
+
+                    try {
+                        const parsed = JSON.parse(cert);
+                        if (parsed.skill) skillName = parsed.skill;
+                        if (parsed.hash) hash = parsed.hash;
+                        if (parsed.date) date = parsed.date;
+                    } catch (e) {
+                        // Original string format
+                    }
+
+                    return {
+                        skill: skillName,
+                        score: 85,
+                        issuedAt: date,
+                        blockchainHash: hash
+                    };
+                });
 
             const result = await generateSkillPassport(history, certs, candidate.name);
             setPassport(result);
