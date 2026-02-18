@@ -125,15 +125,14 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
          const result = await mintSkillPassport(
             candidate.name,
             candidate.skills,
-            candidate.certifications
+            candidate.certifications.map(c => ({ skill: c }))
          );
          setPassportData(result);
          toast.success("🎉 Skill Passport minted successfully!");
 
          // Update candidate profile with passport info
          onUpdateProfile({
-            passportId: result.passportId,
-            passportTxHash: result.txHash
+            certifications: [...(candidate.certifications || []), result.txHash]
          });
       } catch (error) {
          toast.error("Failed to mint passport. Please try again.");
@@ -254,7 +253,7 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
       if (candidate.experience && candidate.experience.trim()) completed++;
       if (candidate.location && candidate.location.trim()) completed++;
       if (candidate.yearsOfExperience && candidate.yearsOfExperience > 0) completed++;
-      if (candidate.introVideoUrl) completed++;
+      if (candidate.videoIntroUrl) completed++;
 
       return Math.round((completed / total) * 100);
    };

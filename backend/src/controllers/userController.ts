@@ -42,7 +42,9 @@ export const getUserProfile = async (
                 .select('*, skills(name)')
                 .eq('user_id', id);
 
-            profile.certifications = certifications || [];
+            if (profile) {
+                profile.certifications = certifications || [];
+            }
         } else {
             const { data: employerProfile } = await supabase
                 .from('employer_profiles')

@@ -638,4 +638,258 @@ router.post('/evaluate-interview', async (req: Request, res: Response) => {
     }
 });
 
+/**
+ * Analyze Video Introduction
+ * POST /api/ai/analyze-video
+ */
+router.post('/analyze-video', async (req: Request, res: Response) => {
+    try {
+        const { videoBase64, mimeType, type = 'introduction', roleContext, assessmentType } = req.body;
+        if (!apiKey) return res.status(500).json({ error: 'AI service not configured' });
+
+        let prompt = '';
+
+        if (type === 'verification') {
+            const rolePrompts: Record<string, string> = {
+                customer_service: `Focus on empathy, patience, problem-solving approach, and ability to handle difficult situations professionally. Assess if they would make customers feel heard and valued.`,
+                sales: `Focus on persuasiveness, enthusiasm, ability to build rapport, handling objections, and closing potential. Assess their ability to influence and inspire action.`,
+                general: `Focus on overall communication effectiveness, professionalism, and clarity of expression.`
+            };
+
+            const specificContext = rolePrompts[assessmentType as string] || rolePrompts['general'];
+
+            prompt = `
+            You are an expert communication skills assessor evaluating a candidate for a ${assessmentType} role.
+            ${specificContext}
+
+            Analyze this video response and provide detailed scoring:
+
+            1. **Transcription**: Complete text of what they said
+            2. **Summary**: 2-3 sentence overview of their response
+            
+            **Communication Scores (0-100 each):**
+            3. Communication Style Score: Overall effectiveness of communication
+            4. Accent Clarity Score: How clear is their speech (not judging accent type, but intelligibility)
+            5. Pronunciation Score: Accuracy of word pronunciation
+            6. Grammar Score: Correct grammar usage in spoken language
+            7. Intonation Score: Voice modulation, tone variation, and expressiveness
+            8. Confidence Score: How confident do they appear and sound
+            9. Clarity Score: How clear and articulate is the message
+            10. Professionalism Score: Professional demeanor and presentation
+            
+            **Role-Specific Scores (0-100):**
+            11. Persuasion Score: Ability to convince and influence (important for sales)
+            12. Empathy Score: Ability to understand and relate to others (important for customer service)
+            
+            **Detailed Feedback:**
+            13. Pace assessment: Too slow, good, optimal, or too fast
+            14. Tone assessment: Description of their tone
+            15. Vocabulary assessment: Appropriate word choice
+            16. Engagement assessment: How engaging is their communication
+            
+            **Final Assessment:**
+            17. Strengths: 3 specific strengths
+            18. Improvements: 3 areas to improve
+            19. Keywords: Key skills/topics mentioned
+            20. Recommended Pass: true/false based on overall performance (70+ average = pass)
+
+            Respond in this exact JSON format:
+            {
+                "transcription": "...",
+                "summary": "...",
+                "communicationStyleScore": 85,
+                "accentScore": 90,
+                "pronunciationScore": 85,
+                "grammarScore": 80,
+                "intonationScore": 75,
+                "confidenceScore": 85,
+                "clarityScore": 90,
+                "professionalismScore": 80,
+                "persuasionScore": 75,
+                "empathyScore": 85,
+                "communicationFeedback": {
+                    "pace": "Optimal - engaging rhythm",
+                    "tone": "Warm and professional",
+                    "vocabulary": "Appropriate for professional context",
+                    "engagement": "Maintains interest throughout"
+                },
+                "strengths": ["strength1", "strength2", "strength3"],
+                "improvements": ["improvement1", "improvement2", "improvement3"],
+                "keywords": ["keyword1", "keyword2"],
+                "recommendedPass": true
+            }
+            `;
+        } else {
+            // Default: Introduction analysis
+            prompt = `
+            Analyze this video introduction from a job candidate. Provide:
+            
+            1. A complete transcription of what they said
+            2. A brief summary (2-3 sentences)
+            3. Confidence score (0-100): How confident do they appear?
+            4. Clarity score (0-100): How clear and articulate is their speech?
+            5. Professionalism score (0-100): How professional is their presentation?
+            6. Key skills/keywords mentioned
+            7. 3 strengths of this introduction
+            8. 3 areas for improvement
+            
+            Respond in this exact JSON format:
+            {
+                "transcription": "full text of what they said",
+                "summary": "brief 2-3 sentence summary",
+                "confidenceScore": 85,
+                "clarityScore": 90,
+                "professionalismScore": 80,
+                "keywords": ["skill1", "skill2"],
+                "strengths": ["strength1", "strength2", "strength3"],
+                "improvements": ["improvement1", "improvement2", "improvement3"]
+            }
+            `;
+        }
+
+        const response = await withTimeout(ai.models.generateContent({
+            model: 'gemini-1.5-flash',
+            contents: [
+                { role: 'user', parts: [{ text: prompt }] },
+                { role: 'user', parts: [{ inlineData: { mimeType, data: videoBase64 } }] }
+            ]
+        }));
+
+        const text = response.text();
+        if (text) {
+            // Parse JSON from response
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('Failed to parse AI response');
+            return res.json(JSON.parse(jsonMatch[0]));
+        }
+        throw new Error('No response from AI');
+
+    } catch (error: any) {
+        logger.error('Video analysis error', { error: error.message });
+        res.status(500).json({ error: 'Failed to analyze video' });
+    }
+});
+
+/**
+ * Execute Code (Judge0)
+ * POST /api/ai/execute-code
+ */
+router.post('/execute-code', async (req: Request, res: Response) => {
+    try {
+        const { sourceCode, languageId, stdin } = req.body;
+        const rapidApiKey = process.env.RAPIDAPI_KEY;
+
+        if (!rapidApiKey) {
+            return res.status(500).json({ error: 'Code execution service not configured' });
+        }
+
+        // 1. Submit Code
+        const submitResponse = await fetch('https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=true&wait=false', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-RapidAPI-Key': rapidApiKey,
+                'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
+            },
+            body: JSON.stringify({
+                source_code: Buffer.from(sourceCode).toString('base64'),
+                language_id: languageId,
+                stdin: Buffer.from(stdin || '').toString('base64'),
+            }),
+        });
+
+        if (!submitResponse.ok) {
+            throw new Error(`Judge0 submission failed: ${submitResponse.statusText}`);
+        }
+
+        const { token } = await submitResponse.json();
+
+        // 2. Poll for results
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
+
+            const resultResponse = await fetch(`https://judge0-ce.p.rapidapi.com/submissions/${token}?base64_encoded=true`, {
+                headers: {
+                    'X-RapidAPI-Key': rapidApiKey,
+                    'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
+                }
+            });
+
+            if (!resultResponse.ok) continue;
+
+            const result = await resultResponse.json();
+
+            // Status ID >= 3 means finished (Accepted, Wrong Answer, Error, etc.)
+            if (result.status.id >= 3) {
+                return res.json({
+                    stdout: result.stdout ? Buffer.from(result.stdout, 'base64').toString() : null,
+                    stderr: result.stderr ? Buffer.from(result.stderr, 'base64').toString() : null,
+                    compile_output: result.compile_output ? Buffer.from(result.compile_output, 'base64').toString() : null,
+                    status: result.status,
+                    time: result.time,
+                    memory: result.memory,
+                    exit_code: result.exit_code
+                });
+            }
+            attempts++;
+        }
+
+        throw new Error('Execution timed out');
+
+    } catch (error: any) {
+        logger.error('Code execution error', { error: error.message });
+        res.status(500).json({ error: 'Failed to execute code' });
+    }
+});
+
+/**
+ * Generate Interview Tips
+ * POST /api/ai/generate-tips
+ */
+router.post('/generate-tips', async (req: Request, res: Response) => {
+    try {
+        const { analysis } = req.body;
+        if (!apiKey) return res.status(500).json({ error: 'AI service not configured' });
+
+        const prompt = `
+        Based on this video introduction analysis, provide 5 specific, actionable interview tips:
+        
+        Summary: ${analysis.summary}
+        Confidence Score: ${analysis.confidenceScore}/100
+        Clarity Score: ${analysis.clarityScore}/100
+        Professionalism Score: ${analysis.professionalismScore}/100
+        Improvements needed: ${(analysis.improvements || []).join(', ')}
+        
+        Provide exactly 5 tips as a JSON array of strings.
+        `;
+
+        const response = await withTimeout(ai.models.generateContent({
+            model: 'gemini-1.5-flash',
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        }));
+
+        const text = response.text();
+        if (text) {
+            const jsonMatch = text.match(/\[[\s\S]*\]/);
+            if (jsonMatch) return res.json(JSON.parse(jsonMatch[0]));
+        }
+
+        // Fallback tips
+        return res.json([
+            'Practice your introduction multiple times',
+            'Maintain eye contact with the camera',
+            'Speak clearly and at a moderate pace',
+            'Highlight your key achievements',
+            'End with enthusiasm about the opportunity'
+        ]);
+
+    } catch (error: any) {
+        logger.error('Tips generation error', { error: error.message });
+        res.status(500).json({ error: 'Failed to generate tips' });
+    }
+});
+
 export default router;

@@ -45,7 +45,7 @@ export interface Database {
                 Row: {
                     id: string;
                     name: string;
-                    category: 'frontend' | 'backend' | 'cloud' | 'devops' | 'architect';
+                    category: 'frontend' | 'backend' | 'cloud' | 'devops' | 'architect' | 'generalist' | 'customer_service' | 'marketing' | 'admin' | 'sales' | 'communication' | 'office_tools';
                     created_at: string;
                 };
                 Insert: Omit<Database['public']['Tables']['skills']['Row'], 'created_at'>;

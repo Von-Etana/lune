@@ -57,7 +57,7 @@ const saveSessions = (sessions: AssessmentSession[]): void => {
  * Generate a unique session ID
  */
 export const generateSessionId = (): string => {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 };
 
 /**

@@ -30,7 +30,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const startTimeRef = useRef<number>(0);
-    const timerRef = useRef<NodeJS.Timeout>();
+    const timerRef = useRef<NodeJS.Timeout>(null);
 
     // Initialize passage
     useEffect(() => {
@@ -249,8 +249,8 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                             className={`mt-6 p-6 rounded-xl border-2 ${result.passed
-                                    ? 'bg-green-50 border-green-200'
-                                    : 'bg-red-50 border-red-200'
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-red-50 border-red-200'
                                 }`}
                         >
                             <div className="flex items-center gap-3 mb-4">

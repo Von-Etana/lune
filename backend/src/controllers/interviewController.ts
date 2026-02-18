@@ -21,8 +21,8 @@ export const startInterview = async (
             throw new ApiError(400, 'Role and topic are required');
         }
 
-        if (!['behavioral', 'technical'].includes(topic)) {
-            throw new ApiError(400, 'Topic must be either "behavioral" or "technical"');
+        if (!['behavioral', 'technical', 'situational', 'case_study', 'general'].includes(topic)) {
+            throw new ApiError(400, 'Invalid interview topic');
         }
 
         // Generate interview question using Gemini AI

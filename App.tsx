@@ -384,7 +384,7 @@ function AppContent() {
 
     // Split feedback into sentences
     const sentences = feedback.split(/\.\s+/);
-    const paragraphs: JSX.Element[] = [];
+    const paragraphs: React.JSX.Element[] = [];
     let currentParagraph: string[] = [];
 
     sentences.forEach((sentence, index) => {
@@ -468,7 +468,7 @@ Verify my certificate: ${certificateUrl}
     };
 
     // LinkedIn Add Certification URL
-    const linkedInAddUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION&name=${encodeURIComponent(certData.name)}&organizationName=${encodeURIComponent(certData.issuedBy)}&issueYear=${new Date().getFullYear()}&issueMonth=${new Date().getMonth() + 1}&certUrl=${encodeURIComponent(certData.credentialUrl)}&certId=${encodeURIComponent(certData.credentialId)}`;
+    const linkedInAddUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION&name=${encodeURIComponent(certData.name)}&organizationName=${encodeURIComponent(certData.issuedBy)}&issueYear=${new Date().getFullYear()}&issueMonth=${new Date().getMonth() + 1}&certUrl=${encodeURIComponent(certData.credentialUrl)}&certId=${encodeURIComponent(String(certData.credentialId))}`;
 
     window.open(linkedInAddUrl, '_blank');
     toast.success("🎓 Opening LinkedIn to add your certificate to your profile!");

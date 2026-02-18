@@ -1199,7 +1199,7 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                               <div className="mt-4 flex flex-wrap gap-2">
                                  {Object.entries(candidate.skills).slice(0, 3).map(([skill, score]) => (
                                     <span key={skill} className="bg-gray-50 text-gray-600 text-xs px-2 py-1 rounded border border-gray-200">
-                                       {skill} <span className={`font-semibold ${getScoreTextColor(score as number)}`}>{score}%</span>
+                                       {skill} <span className={`font-semibold ${getScoreTextColor(score as number)}`}>{score as number}%</span>
                                     </span>
                                  ))}
                               </div>

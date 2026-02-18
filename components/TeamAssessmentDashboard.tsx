@@ -30,13 +30,13 @@ interface Assessment {
     id: string;
     name: string;
     skill: string;
-    difficulty: DifficultyLevel;
+    difficulty: string;
     questionsCount: number;
     timeLimit: number;
     candidatesInvited: number;
     candidatesCompleted: number;
     createdAt: string;
-    status: 'draft' | 'active' | 'closed';
+    status: string;
 }
 
 interface BulkInvite {

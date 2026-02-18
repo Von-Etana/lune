@@ -148,37 +148,49 @@ export const getMatchedCandidates = async (
         candidate_profiles (*),
         certifications (*, skills(*))
       `)
-            .eq('role', 'candidate');
+            .eq('role', 'candidate')
+            .limit(100);
 
         if (candidatesError) {
             throw new ApiError(500, 'Failed to fetch candidates');
         }
 
-        // Use AI to match candidates to job
-        const matches = await geminiService.matchCandidatesToJob(
-            job.description,
-            candidates.map((c: any) => ({
-                id: c.id,
-                name: c.name,
-                title: c.candidate_profiles?.title,
-                skills: c.certifications?.reduce((acc: any, cert: any) => {
-                    acc[cert.skills.name] = cert.score;
-                    return acc;
-                }, {}),
-                years_of_experience: c.candidate_profiles?.years_of_experience,
-                certifications: c.certifications || []
-            }))
-        );
+        // Use AI to match candidates to job (with graceful fallback)
+        let matchedCandidates;
+        try {
+            const matches = await geminiService.matchCandidatesToJob(
+                job.description,
+                candidates.map((c: any) => ({
+                    id: c.id,
+                    name: c.name,
+                    title: c.candidate_profiles?.title,
+                    skills: c.certifications?.reduce((acc: any, cert: any) => {
+                        acc[cert.skills.name] = cert.score;
+                        return acc;
+                    }, {}),
+                    years_of_experience: c.candidate_profiles?.years_of_experience,
+                    certifications: c.certifications || []
+                }))
+            );
 
-        // Combine candidate data with match scores
-        const matchedCandidates = matches.map((match: any) => {
-            const candidate = candidates.find((c: any) => c.id === match.candidateId);
-            return {
-                ...candidate,
-                matchScore: match.score,
-                matchReason: match.matchReason
-            };
-        });
+            // Combine candidate data with match scores
+            matchedCandidates = matches.map((match: any) => {
+                const candidate = candidates.find((c: any) => c.id === match.candidateId);
+                return {
+                    ...candidate,
+                    matchScore: match.score,
+                    matchReason: match.matchReason
+                };
+            });
+        } catch (aiError) {
+            // Fallback: return candidates without AI matching
+            logger.warn('AI matching failed, returning unranked candidates', { error: aiError });
+            matchedCandidates = candidates.map((c: any) => ({
+                ...c,
+                matchScore: null,
+                matchReason: 'AI matching unavailable'
+            }));
+        }
 
         res.json({ candidates: matchedCandidates });
 

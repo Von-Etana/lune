@@ -125,7 +125,7 @@ export const dataService = {
     async getAssessments(): Promise<Assessment[]> {
         const { data, error } = await supabase
             .from('assessments')
-            .select('*')
+            .select('*, skills(name)')
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -136,14 +136,14 @@ export const dataService = {
         return data.map((a: any) => ({
             id: a.id,
             name: a.title,
-            skill: 'Unknown', // Need to join with skills table or fetch
+            skill: a.skills?.name || 'Unknown',
             difficulty: a.difficulty,
             questionsCount: a.theory_questions?.length || 0,
-            timeLimit: 45, // Default
-            candidatesInvited: 0,
-            candidatesCompleted: 0,
+            timeLimit: a.time_limit || 45,
+            candidatesInvited: a.candidates_invited || 0,
+            candidatesCompleted: a.candidates_completed || 0,
             createdAt: a.created_at,
-            status: 'active'
+            status: a.status || 'active'
         }));
     },
 

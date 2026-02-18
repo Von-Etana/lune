@@ -27,9 +27,9 @@ export const LANGUAGE_IDS: Record<string, number> = {
     'sql': 82,             // SQL
 };
 
-// Public Judge0 API (RapidAPI hosted)
-const JUDGE0_API_URL = 'https://judge0-ce.p.rapidapi.com';
-const RAPID_API_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
+// Public Judge0 API (RapidAPI hosted) - Now accessed via backend proxy
+// const JUDGE0_API_URL = 'https://judge0-ce.p.rapidapi.com';
+// const RAPID_API_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
 
 export interface ExecutionResult {
     stdout: string | null;
@@ -86,81 +86,7 @@ const fromBase64 = (str: string): string => {
 };
 
 /**
- * Submit code for execution
- */
-export const submitCode = async (
-    sourceCode: string,
-    languageId: number,
-    stdin: string = ''
-): Promise<string> => {
-    const response = await fetch(`${JUDGE0_API_URL}/submissions?base64_encoded=true&wait=false`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-RapidAPI-Key': RAPID_API_KEY,
-            'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
-        },
-        body: JSON.stringify({
-            source_code: toBase64(sourceCode),
-            language_id: languageId,
-            stdin: toBase64(stdin),
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`Judge0 API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.token;
-};
-
-/**
- * Get submission result by token
- */
-export const getSubmissionResult = async (token: string): Promise<ExecutionResult> => {
-    const maxAttempts = 10;
-    const delay = 1000; // 1 second
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const response = await fetch(
-            `${JUDGE0_API_URL}/submissions/${token}?base64_encoded=true&fields=*`,
-            {
-                headers: {
-                    'X-RapidAPI-Key': RAPID_API_KEY,
-                    'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
-                },
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error(`Judge0 API error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        // Status IDs: 1=In Queue, 2=Processing, 3=Accepted, 4=Wrong Answer, etc.
-        if (data.status.id >= 3) {
-            return {
-                stdout: data.stdout ? fromBase64(data.stdout) : null,
-                stderr: data.stderr ? fromBase64(data.stderr) : null,
-                compile_output: data.compile_output ? fromBase64(data.compile_output) : null,
-                status: data.status,
-                time: data.time,
-                memory: data.memory,
-                exit_code: data.exit_code,
-            };
-        }
-
-        // Wait before next attempt
-        await new Promise(resolve => setTimeout(resolve, delay));
-    }
-
-    throw new Error('Execution timed out');
-};
-
-/**
- * Execute code and get result
+ * Submit code for execution via Backend
  */
 export const executeCode = async (
     sourceCode: string,
@@ -172,8 +98,26 @@ export const executeCode = async (
         throw new Error(`Unsupported language: ${language}`);
     }
 
-    const token = await submitCode(sourceCode, languageId, stdin);
-    return await getSubmissionResult(token);
+    try {
+        const response = await fetch('/api/ai/execute-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sourceCode,
+                languageId,
+                stdin
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Code execution failed');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Execution error:', error);
+        throw error;
+    }
 };
 
 /**
@@ -281,17 +225,10 @@ export const smartExecuteCode = async (
     language: string,
     testCases: TestCase[]
 ): Promise<CodeExecutionResult> => {
-    // Check if RapidAPI key is available
-    if (RAPID_API_KEY && RAPID_API_KEY !== 'your_rapidapi_key_here') {
-        try {
-            return await runTestCases(sourceCode, language, testCases);
-        } catch (error) {
-            console.warn('Judge0 API failed, using simulation:', error);
-            return await simulateExecution(sourceCode, language, testCases);
-        }
+    try {
+        return await runTestCases(sourceCode, language, testCases);
+    } catch (error) {
+        console.warn('Judge0 API failed, using simulation:', error);
+        return await simulateExecution(sourceCode, language, testCases);
     }
-
-    // Use simulation if no API key
-    console.info('No RapidAPI key configured, using code simulation');
-    return await simulateExecution(sourceCode, language, testCases);
 };

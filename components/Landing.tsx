@@ -53,7 +53,7 @@ export const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
             transition: {
                 duration: 6,
                 repeat: Infinity,
-                ease: "easeInOut"
+                ease: "easeInOut" as const
             }
         }
     };
@@ -156,7 +156,7 @@ export const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
                         <motion.div
                             variants={floatAnimation}
                             animate={{ y: [0, 15, 0] }} // Reverse float
-                            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+                            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" as const }}
                             className="bg-orange rounded-full aspect-square shadow-lg"
                         ></motion.div>
 
@@ -164,7 +164,7 @@ export const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
                         <motion.div
                             variants={floatAnimation}
                             animate={{ y: [0, -10, 0] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" as const, delay: 1 }}
                             className="bg-white rounded-2xl aspect-square flex items-center justify-center p-4 relative overflow-hidden shadow-sm"
                         >
                             <div className="absolute inset-0 grid grid-cols-4 gap-2 p-4 opacity-20">
@@ -179,7 +179,7 @@ export const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
                         <motion.div
                             variants={floatAnimation}
                             animate={{ y: [0, 20, 0] }}
-                            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" as const, delay: 0.5 }}
                             className="bg-darkblue rounded-2xl aspect-square flex items-center justify-center rounded-tr-[100px] shadow-lg"
                         >
                             <svg className="w-24 h-24 text-white/50" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="4">

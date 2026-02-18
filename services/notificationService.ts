@@ -18,7 +18,7 @@ class NotificationService {
     createNotification(notification: Omit<Notification, 'id' | 'createdAt'>): Notification {
         const newNotification: Notification = {
             ...notification,
-            id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
             createdAt: new Date().toISOString()
         };
 

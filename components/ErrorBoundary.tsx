@@ -41,6 +41,10 @@ export class ErrorBoundary extends Component<Props, State> {
                 sessionStorage.setItem(storageKey, timeNow.toString());
                 window.location.reload();
                 return;
+            } else {
+                // If we JUST reloaded and it failed again, clear the key so we don't get stuck
+                console.error('Reload loop detected, stopping auto-reload');
+                sessionStorage.removeItem(storageKey);
             }
         }
 

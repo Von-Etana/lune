@@ -3,9 +3,12 @@
  * Provides AI-powered video introduction analysis with transcription and scoring
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+/**
+ * Video Analysis Service
+ * Provides AI-powered video introduction analysis with transcription and scoring
+ */
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+// Gemini API is now called via backend proxy to secure API keys
 
 export interface VideoAnalysisResult {
     transcription: string;
@@ -162,64 +165,33 @@ const writeString = (view: DataView, offset: number, string: string) => {
 };
 
 /**
- * Analyze video introduction using Gemini AI
+ * Analyze video introduction using Gemini AI via Backend
  */
 export const analyzeVideoIntroduction = async (
     videoFile: File
 ): Promise<VideoAnalysisResult> => {
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
         // Get video duration
         const duration = await getVideoDuration(videoFile);
 
-        // Convert video to base64 for analysis
+        // Convert video to base64 for upload
         const base64Video = await fileToBase64(videoFile);
 
-        const prompt = `
-        Analyze this video introduction from a job candidate. Provide:
-        
-        1. A complete transcription of what they said
-        2. A brief summary (2-3 sentences)
-        3. Confidence score (0-100): How confident do they appear?
-        4. Clarity score (0-100): How clear and articulate is their speech?
-        5. Professionalism score (0-100): How professional is their presentation?
-        6. Key skills/keywords mentioned
-        7. 3 strengths of this introduction
-        8. 3 areas for improvement
-        
-        Respond in this exact JSON format:
-        {
-            "transcription": "full text of what they said",
-            "summary": "brief 2-3 sentence summary",
-            "confidenceScore": 85,
-            "clarityScore": 90,
-            "professionalismScore": 80,
-            "keywords": ["skill1", "skill2"],
-            "strengths": ["strength1", "strength2", "strength3"],
-            "improvements": ["improvement1", "improvement2", "improvement3"]
-        }
-        `;
+        // Call backend proxy
+        const response = await fetch('/api/ai/analyze-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                videoBase64: base64Video.split(',')[1],
+                mimeType: videoFile.type
+            })
+        });
 
-        const result = await model.generateContent([
-            { text: prompt },
-            {
-                inlineData: {
-                    mimeType: videoFile.type,
-                    data: base64Video.split(',')[1]
-                }
-            }
-        ]);
-
-        const responseText = result.response.text();
-
-        // Parse JSON from response
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Failed to parse AI response');
+        if (!response.ok) {
+            throw new Error('Video analysis failed');
         }
 
-        const analysis = JSON.parse(jsonMatch[0]);
+        const analysis = await response.json();
 
         // Calculate overall score
         const overallScore = Math.round(
@@ -292,35 +264,17 @@ export const generateInterviewTips = async (
     analysis: VideoAnalysisResult
 ): Promise<string[]> => {
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const response = await fetch('/api/ai/generate-tips', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ analysis })
+        });
 
-        const prompt = `
-        Based on this video introduction analysis, provide 5 specific, actionable interview tips:
-        
-        Summary: ${analysis.summary}
-        Confidence Score: ${analysis.confidenceScore}/100
-        Clarity Score: ${analysis.clarityScore}/100
-        Professionalism Score: ${analysis.professionalismScore}/100
-        Improvements needed: ${analysis.improvements.join(', ')}
-        
-        Provide exactly 5 tips as a JSON array of strings.
-        `;
-
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-
-        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+        if (!response.ok) {
+            throw new Error('Failed to generate tips');
         }
 
-        return [
-            'Practice your introduction multiple times',
-            'Maintain eye contact with the camera',
-            'Speak clearly and at a moderate pace',
-            'Highlight your key achievements',
-            'End with enthusiasm about the opportunity'
-        ];
+        return await response.json();
     } catch (error) {
         console.error('Failed to generate tips:', error);
         return [
@@ -370,97 +324,26 @@ export const analyzeVideoVerification = async (
     assessmentType: 'customer_service' | 'sales' | 'general' = 'general'
 ): Promise<VideoVerificationResult> => {
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const duration = await getVideoDuration(videoFile);
         const base64Video = await fileToBase64(videoFile);
 
-        const rolePrompts = {
-            customer_service: `Focus on empathy, patience, problem-solving approach, and ability to handle difficult situations professionally. Assess if they would make customers feel heard and valued.`,
-            sales: `Focus on persuasiveness, enthusiasm, ability to build rapport, handling objections, and closing potential. Assess their ability to influence and inspire action.`,
-            general: `Focus on overall communication effectiveness, professionalism, and clarity of expression.`
-        };
+        const response = await fetch('/api/ai/analyze-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                videoBase64: base64Video.split(',')[1],
+                mimeType: videoFile.type,
+                type: 'verification',
+                roleContext,
+                assessmentType
+            })
+        });
 
-        const prompt = `
-        You are an expert communication skills assessor evaluating a candidate for a ${assessmentType.replace('_', ' ')} role.
-        
-        ${rolePrompts[assessmentType]}
-
-        Analyze this video response and provide detailed scoring:
-
-        1. **Transcription**: Complete text of what they said
-        2. **Summary**: 2-3 sentence overview of their response
-        
-        **Communication Scores (0-100 each):**
-        3. Communication Style Score: Overall effectiveness of communication
-        4. Accent Clarity Score: How clear is their speech (not judging accent type, but intelligibility)
-        5. Pronunciation Score: Accuracy of word pronunciation
-        6. Grammar Score: Correct grammar usage in spoken language
-        7. Intonation Score: Voice modulation, tone variation, and expressiveness
-        8. Confidence Score: How confident do they appear and sound
-        9. Clarity Score: How clear and articulate is the message
-        10. Professionalism Score: Professional demeanor and presentation
-        
-        **Role-Specific Scores (0-100):**
-        11. Persuasion Score: Ability to convince and influence (important for sales)
-        12. Empathy Score: Ability to understand and relate to others (important for customer service)
-        
-        **Detailed Feedback:**
-        13. Pace assessment: Too slow, good, optimal, or too fast
-        14. Tone assessment: Description of their tone
-        15. Vocabulary assessment: Appropriate word choice
-        16. Engagement assessment: How engaging is their communication
-        
-        **Final Assessment:**
-        17. Strengths: 3 specific strengths
-        18. Improvements: 3 areas to improve
-        19. Keywords: Key skills/topics mentioned
-        20. Recommended Pass: true/false based on overall performance (70+ average = pass)
-
-        Respond in this exact JSON format:
-        {
-            "transcription": "...",
-            "summary": "...",
-            "communicationStyleScore": 85,
-            "accentScore": 90,
-            "pronunciationScore": 85,
-            "grammarScore": 80,
-            "intonationScore": 75,
-            "confidenceScore": 85,
-            "clarityScore": 90,
-            "professionalismScore": 80,
-            "persuasionScore": 75,
-            "empathyScore": 85,
-            "communicationFeedback": {
-                "pace": "Optimal - engaging rhythm",
-                "tone": "Warm and professional",
-                "vocabulary": "Appropriate for professional context",
-                "engagement": "Maintains interest throughout"
-            },
-            "strengths": ["strength1", "strength2", "strength3"],
-            "improvements": ["improvement1", "improvement2", "improvement3"],
-            "keywords": ["keyword1", "keyword2"],
-            "recommendedPass": true
-        }
-        `;
-
-        const result = await model.generateContent([
-            { text: prompt },
-            {
-                inlineData: {
-                    mimeType: videoFile.type,
-                    data: base64Video.split(',')[1]
-                }
-            }
-        ]);
-
-        const responseText = result.response.text();
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-
-        if (!jsonMatch) {
-            throw new Error('Failed to parse AI response');
+        if (!response.ok) {
+            throw new Error('Video verification failed');
         }
 
-        const analysis = JSON.parse(jsonMatch[0]);
+        const analysis = await response.json();
 
         // Calculate overall score
         const overallScore = Math.round(

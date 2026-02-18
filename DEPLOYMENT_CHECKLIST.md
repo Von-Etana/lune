@@ -13,6 +13,7 @@ Use this checklist to ensure your Lune Platform deployment goes smoothly.
 |----------|-------------|---------------|
 | `NODE_ENV` | Environment mode | `production` |
 | `GEMINI_API_KEY` | Google AI API Key | `AIzaSy...` |
+| `RAPIDAPI_KEY` | Judge0 API Key | `aa5...` |
 | `SUPABASE_URL` | Check Supabase Settings | `https://xyz.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | The `service_role` key (NOT anon) | `eyJh...` |
 | `SEED_PHRASE` | Wallet for minting certs | `word1 word2 ...` |

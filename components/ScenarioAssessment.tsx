@@ -721,8 +721,8 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
                         <div>
                             <h1 className="font-bold text-gray-900 leading-tight">{skill} Assessment</h1>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <span className={`capitalize font-medium ${difficulty === 'Expert' ? 'text-red-600' :
-                                    difficulty === 'Intermediate' ? 'text-yellow-600' :
+                                <span className={`capitalize font-medium ${difficulty === 'Advanced' ? 'text-red-600' :
+                                    difficulty === 'Mid-Level' ? 'text-yellow-600' :
                                         'text-green-600'
                                     }`}>{difficulty}</span>
                                 <span>•</span>
@@ -904,7 +904,7 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
                                             <div className="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider mt-4">Video Response</div>
                                             <button
                                                 onClick={() => setStep('oral')}
-                                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center justify-between group transition ${step === 'oral'
+                                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center justify-between group transition ${(step as AssessmentStep) === 'oral'
                                                     ? 'bg-orange-50 text-orange font-bold border border-orange-100'
                                                     : 'text-gray-600 hover:bg-gray-50'
                                                     }`}
@@ -912,7 +912,7 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
                                                 <span className="flex items-center gap-2">
                                                     <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs ${audioBlob
                                                         ? 'bg-green-100 text-green-700'
-                                                        : step === 'oral' ? 'bg-orange-200 text-orange-900' : 'bg-gray-100 text-gray-500'
+                                                        : (step as AssessmentStep) === 'oral' ? 'bg-orange-200 text-orange-900' : 'bg-gray-100 text-gray-500'
                                                         }`}>
                                                         {audioBlob ? <CheckCircle className="w-3 h-3" /> : content.situationalQuestions.length + 1}
                                                     </span>

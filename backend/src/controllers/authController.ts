@@ -21,6 +21,10 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
             throw new ApiError(400, 'Invalid email format');
         }
 
+        if (password.length < 8) {
+            throw new ApiError(400, 'Password must be at least 8 characters long');
+        }
+
         if (!['candidate', 'employer'].includes(role)) {
             throw new ApiError(400, 'Role must be either "candidate" or "employer"');
         }
@@ -146,7 +150,11 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
 
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.substring(7);
-            await supabase.auth.signOut();
+            // Get user from token then sign them out via admin API
+            const { data: { user } } = await supabase.auth.getUser(token);
+            if (user) {
+                await supabaseAdmin.auth.admin.signOut(user.id);
+            }
         }
 
         res.json({ message: 'Logout successful' });
