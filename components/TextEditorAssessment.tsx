@@ -6,6 +6,7 @@ import {
     List, ListOrdered, Link2, Image, Undo, Redo, Save,
     AlertCircle, Sparkles, Type, Heading1, Heading2
 } from 'lucide-react';
+import { mintCertificate } from '../services/pwrService';
 import { DifficultyLevel, EvaluationResult } from '../types';
 
 interface TextEditorAssessmentProps {
@@ -298,13 +299,26 @@ Phase 2: [Description] - [Duration]
         }, 2500);
     };
 
-    const handleComplete = () => {
+    const handleComplete = async () => {
         if (!result) return;
+
+        const passed = result.score >= 70;
+        let txHash;
+
+        if (passed) {
+            try {
+                txHash = await mintCertificate("Candidate", skill, result.score);
+            } catch (e) {
+                console.error("Failed to mint", e);
+            }
+        }
+
         onComplete({
             score: result.score,
             feedback: result.feedback,
-            passed: result.score >= 70,
-            cheatingDetected: false
+            passed,
+            cheatingDetected: false,
+            certificationHash: txHash
         });
     };
 

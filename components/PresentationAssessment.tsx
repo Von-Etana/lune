@@ -5,6 +5,7 @@ import {
     Plus, Trash2, Image, Type, Square, Circle, Play, Save,
     AlertCircle, Sparkles, Layout, Grid, Monitor, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { mintCertificate } from '../services/pwrService';
 import { DifficultyLevel, EvaluationResult } from '../types';
 
 interface PresentationAssessmentProps {
@@ -319,13 +320,26 @@ export const PresentationAssessment: React.FC<PresentationAssessmentProps> = ({
         }, 2500);
     };
 
-    const handleComplete = () => {
+    const handleComplete = async () => {
         if (!result) return;
+
+        const passed = result.score >= 70;
+        let txHash;
+
+        if (passed) {
+            try {
+                txHash = await mintCertificate("Candidate", skill, result.score);
+            } catch (e) {
+                console.error("Failed to mint", e);
+            }
+        }
+
         onComplete({
             score: result.score,
             feedback: result.feedback,
-            passed: result.score >= 70,
-            cheatingDetected: false
+            passed,
+            cheatingDetected: false,
+            certificationHash: txHash
         });
     };
 

@@ -5,6 +5,7 @@ import {
     AlertCircle, Sparkles, Download, Upload, Calculator,
     BarChart2, Plus, Trash2, Copy, Undo, Redo
 } from 'lucide-react';
+import { mintCertificate } from '../services/pwrService';
 import { DifficultyLevel, EvaluationResult } from '../types';
 
 interface SpreadsheetAssessmentProps {
@@ -377,13 +378,26 @@ export const SpreadsheetAssessment: React.FC<SpreadsheetAssessmentProps> = ({
         }, 2000);
     };
 
-    const handleComplete = () => {
+    const handleComplete = async () => {
         if (!result) return;
+
+        const passed = result.score >= 70;
+        let txHash;
+
+        if (passed) {
+            try {
+                txHash = await mintCertificate("Candidate", skill, result.score);
+            } catch (e) {
+                console.error("Failed to mint", e);
+            }
+        }
+
         onComplete({
             score: result.score,
             feedback: result.feedback,
-            passed: result.score >= 70,
-            cheatingDetected: false
+            passed,
+            cheatingDetected: false,
+            certificationHash: txHash
         });
     };
 
@@ -599,8 +613,8 @@ export const SpreadsheetAssessment: React.FC<SpreadsheetAssessmentProps> = ({
                                                             key={colIdx}
                                                             onClick={() => handleCellClick(rowIdx, colIdx)}
                                                             className={`h-8 border border-gray-200 px-2 cursor-pointer text-sm ${selectedCell?.row === rowIdx && selectedCell?.col === colIdx
-                                                                    ? 'bg-blue-50 ring-2 ring-blue-500 ring-inset'
-                                                                    : 'hover:bg-gray-50'
+                                                                ? 'bg-blue-50 ring-2 ring-blue-500 ring-inset'
+                                                                : 'hover:bg-gray-50'
                                                                 } ${cell.formula ? 'text-blue-600' : ''
                                                                 } ${rowIdx === 0 ? 'font-bold bg-gray-50' : ''
                                                                 }`}

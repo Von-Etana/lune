@@ -11,6 +11,7 @@ import {
     evaluateScenarioResponse,
     ScenarioAssessmentContent
 } from '../services/geminiService';
+import { mintCertificate } from '../services/pwrService';
 import { proctoringService } from '../services/proctoringService';
 import { DifficultyLevel, EvaluationResult } from '../types';
 import {
@@ -630,6 +631,16 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
         // Final integrity check
         const finalPassed = passed && !hasCheatingEvents && !hasLowIntegrity;
 
+        let txHash;
+        if (finalPassed) {
+            try {
+                // Determine skill name from props
+                txHash = await mintCertificate("Candidate", skill, result.score);
+            } catch (e) {
+                console.error("Failed to mint certificate", e);
+            }
+        }
+
         onComplete({
             score: result.score,
             feedback: result.feedback,
@@ -640,7 +651,8 @@ export const ScenarioAssessment: React.FC<ScenarioAssessmentProps> = ({
                 : undefined,
             timeSpentSeconds: elapsedTime,
             integrityScore: integrityScore,
-            categoryScores: result.categoryScores
+            categoryScores: result.categoryScores,
+            certificationHash: txHash
         });
     };
 
