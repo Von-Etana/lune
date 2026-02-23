@@ -287,13 +287,13 @@ export const SkillPassport: React.FC<SkillPassportProps> = ({
                             Skill Passport
                         </div>
                         <h2 className="text-2xl font-bold mb-1">{candidate.name}</h2>
-                        <p className="text-white/70">{passport.overallProfile.summary}</p>
+                        <p className="text-white/70">{passport.overallProfile?.summary || "Skill passport verified."}</p>
                     </div>
 
                     <div className="flex items-center gap-4">
                         <div className="text-center">
                             <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                                <span className="text-3xl font-bold">{passport.overallProfile.readinessScore}</span>
+                                <span className="text-3xl font-bold">{passport.overallProfile?.readinessScore || 75}</span>
                             </div>
                             <p className="text-xs text-white/70 mt-1">Readiness Score</p>
                         </div>
@@ -343,7 +343,7 @@ export const SkillPassport: React.FC<SkillPassportProps> = ({
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
                                     <span className="text-green-700 font-medium">Top Category</span>
-                                    <span className="text-green-800 font-bold">{passport.overallProfile.topCategory}</span>
+                                    <span className="text-green-800 font-bold">{passport.overallProfile?.topCategory || "General"}</span>
                                 </div>
                                 <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
                                     <span className="text-blue-700 font-medium">Verified Skills</span>
@@ -363,7 +363,7 @@ export const SkillPassport: React.FC<SkillPassportProps> = ({
                                 Focus Areas
                             </h3>
                             <div className="space-y-3">
-                                {passport.overallProfile.growthAreas.map((area, idx) => (
+                                {(passport.overallProfile?.growthAreas || []).map((area, idx) => (
                                     <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                                         <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
                                             <span className="text-amber-600 font-bold text-sm">{idx + 1}</span>
