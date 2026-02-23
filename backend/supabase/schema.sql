@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('candidate', 'employer')),
     name TEXT NOT NULL,
+    user_preferences JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

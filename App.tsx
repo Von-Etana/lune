@@ -21,6 +21,14 @@ import { seedService } from './services/seedService';
 // Expose seedService to window for development
 (window as any).seedService = seedService;
 
+import { getCandidateProfile, updateCandidateProfile } from './services/profileService';
+import { initializeAssessmentHistory } from './services/assessmentHistoryService';
+import { initializeSessions } from './services/assessmentSessionService';
+import { initializeGamification } from './services/gamificationService';
+import { initializeAiLearning } from './services/aiLearningService';
+import { initializeNotifications } from './services/notificationService';
+import { initializeWallet } from './services/blockchainWalletService';
+
 // Lazy-loaded components for code splitting
 const Assessment = lazy(() => import('./components/Assessment').then(m => ({ default: m.Assessment })));
 const EmployerDashboard = lazy(() => import('./components/EmployerDashboard').then(m => ({ default: m.EmployerDashboard })));
@@ -100,11 +108,19 @@ function AppContent() {
   const [assessmentResult, setAssessmentResult] = useState<EvaluationResult | null>(null);
   const [candidateProfile, setCandidateProfileState] = useState<CandidateProfile>(loadProfileFromStorage);
 
-  // Wrapper to persist profile changes to localStorage
+  // Wrapper to persist profile changes to localStorage and Supabase
   const setCandidateProfile = (updater: CandidateProfile | ((prev: CandidateProfile) => CandidateProfile)) => {
     setCandidateProfileState((prev) => {
       const newProfile = typeof updater === 'function' ? updater(prev) : updater;
       saveProfileToStorage(newProfile);
+
+      // Sync to Supabase in the background
+      if (user && user.role === 'candidate') {
+        updateCandidateProfile(user.id, newProfile).catch(err =>
+          console.error('Failed to sync profile to Supabase:', err)
+        );
+      }
+
       return newProfile;
     });
   };
@@ -134,20 +150,43 @@ function AppContent() {
   // Update profile when user changes and check for onboarding
   useEffect(() => {
     if (user) {
-      setCandidateProfile(prev => {
-        // Only update if user id/name actually changed to avoid unnecessary re-renders
-        if (prev.id === user.id && prev.name === user.name) {
-          return prev; // No change needed, preserve all existing data
-        }
+      if (user.role === 'candidate') {
+        // Fetch real profile from Supabase
+        getCandidateProfile(user.id).then((profileData) => {
+          if (profileData) {
+            setCandidateProfileState((prev) => {
+              const merged = { ...prev, ...profileData, id: user.id, name: user.name };
+              saveProfileToStorage(merged);
+              return merged;
+            });
+          } else {
+            // Fallback to updating ID/Name only
+            setCandidateProfileState(prev => ({
+              ...prev,
+              id: user.id,
+              name: user.name
+            }));
+          }
+        });
 
-        // Update user-specific fields while preserving all other profile data
-        // (skills, certifications, images, videos, etc.)
-        return {
+        // Initialize other state from Supabase
+        initializeAssessmentHistory(user.id);
+        initializeSessions(user.id);
+        initializeGamification(user.id);
+        initializeAiLearning(user.id);
+        initializeNotifications(user.id);
+        initializeWallet(user.id);
+        onboardingService.setUserId(user.id);
+      } else {
+        setCandidateProfileState(prev => ({
           ...prev,
           id: user.id,
           name: user.name,
-        };
-      });
+        }));
+
+        initializeNotifications(user.id);
+      }
+
       setUserRole(user.role === 'candidate' ? UserRole.CANDIDATE : UserRole.EMPLOYER);
 
       // Handle login redirect - if modal was open and user just authenticated

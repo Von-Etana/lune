@@ -10,6 +10,8 @@ import { DifficultyLevel, AssessmentType } from '../types';
 // INTERFACES
 // =====================================================
 
+import { supabase } from '../lib/supabase';
+
 export interface LearningDataPoint {
     id: string;
     timestamp: string;
@@ -91,6 +93,61 @@ export interface FeedbackSubmission {
 const CONSENT_VERSION = '1.0.0';
 const STORAGE_KEY = 'lune_ai_learning_consent';
 const DATA_STORAGE_KEY = 'lune_ai_learning_data';
+const CONSENT_KEY = 'lune_consents';
+
+let cachedConsents: ConsentRecord[] = [];
+let cachedLearningData: LearningDataPoint[] = [];
+
+export const initializeAiLearning = async (userId: string) => {
+    try {
+        const { data, error } = await supabase
+            .from('candidate_profiles')
+            .select('user_preferences')
+            .eq('user_id', userId)
+            .single();
+
+        if (!error && data?.user_preferences) {
+            const prefs = data.user_preferences as any;
+            if (prefs.ai_learning?.consents) {
+                cachedConsents = prefs.ai_learning.consents;
+                localStorage.setItem(CONSENT_KEY, JSON.stringify(cachedConsents));
+            }
+            if (prefs.ai_learning?.data) {
+                cachedLearningData = prefs.ai_learning.data;
+                localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(cachedLearningData));
+            }
+        } else {
+            // Fallback load
+            const storedConsents = localStorage.getItem(CONSENT_KEY);
+            if (storedConsents) cachedConsents = JSON.parse(storedConsents);
+
+            const storedData = localStorage.getItem(DATA_STORAGE_KEY);
+            if (storedData) cachedLearningData = JSON.parse(storedData);
+        }
+    } catch (err) {
+        console.error('Failed to init ai learning:', err);
+    }
+};
+
+const syncToSupabaseAsync = async (userId: string, section: 'consents' | 'data', payload: any) => {
+    try {
+        const { data, error } = await supabase.from('candidate_profiles')
+            .select('user_preferences')
+            .eq('user_id', userId)
+            .single();
+        if (error) return;
+
+        const prefs = data?.user_preferences || {};
+        if (!(prefs as any).ai_learning) (prefs as any).ai_learning = {};
+        (prefs as any).ai_learning[section] = payload;
+
+        await supabase.from('candidate_profiles')
+            .update({ user_preferences: prefs })
+            .eq('user_id', userId);
+    } catch (e) {
+        console.error('Failed to sync ai learning', e);
+    }
+};
 
 /**
  * Check if candidate has given consent for data collection
@@ -111,6 +168,7 @@ export const hasConsent = (candidateId: string): boolean => {
  * Get stored consent records
  */
 const getStoredConsents = (): ConsentRecord[] => {
+    if (cachedConsents.length > 0) return cachedConsents;
     try {
         const stored = localStorage.getItem(CONSENT_KEY);
         return stored ? JSON.parse(stored) : [];
@@ -118,8 +176,6 @@ const getStoredConsents = (): ConsentRecord[] => {
         return [];
     }
 };
-
-const CONSENT_KEY = 'lune_consents';
 
 /**
  * Record user consent for data collection
@@ -144,7 +200,9 @@ export const recordConsent = (
         consents.push(consent);
     }
 
+    cachedConsents = consents;
     localStorage.setItem(CONSENT_KEY, JSON.stringify(consents));
+    syncToSupabaseAsync(candidateId, 'consents', consents);
     return consent;
 };
 
@@ -157,7 +215,9 @@ export const withdrawConsent = (candidateId: string, deleteData: boolean = false
 
     if (consentIndex >= 0) {
         consents[consentIndex].withdrawnAt = new Date().toISOString();
+        cachedConsents = consents;
         localStorage.setItem(CONSENT_KEY, JSON.stringify(consents));
+        syncToSupabaseAsync(candidateId, 'consents', consents);
     }
 
     if (deleteData) {
@@ -181,6 +241,7 @@ export const getConsentStatus = (candidateId: string): ConsentRecord | null => {
  * Get stored learning data
  */
 const getStoredData = (): LearningDataPoint[] => {
+    if (cachedLearningData.length > 0) return cachedLearningData;
     try {
         const stored = localStorage.getItem(DATA_STORAGE_KEY);
         return stored ? JSON.parse(stored) : [];
@@ -215,7 +276,9 @@ export const collectLearningData = (
 
     // Keep only last 1000 data points in local storage
     const trimmedData = storedData.slice(-1000);
+    cachedLearningData = trimmedData;
     localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(trimmedData));
+    syncToSupabaseAsync(data.candidateId, 'data', trimmedData);
 
     return dataPoint;
 };
@@ -272,7 +335,9 @@ export const deleteCandidateData = (candidateId: string): number => {
     const filtered = data.filter(d => d.candidateId !== candidateId);
     const deletedCount = data.length - filtered.length;
 
+    cachedLearningData = filtered;
     localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(filtered));
+    syncToSupabaseAsync(candidateId, 'data', filtered);
 
     return deletedCount;
 };
@@ -285,9 +350,12 @@ export const anonymizeData = (dataPointId: string): boolean => {
     const index = data.findIndex(d => d.id === dataPointId);
 
     if (index >= 0) {
+        const candidateId = data[index].candidateId;
         data[index].candidateId = 'anonymous';
         data[index].anonymized = true;
+        cachedLearningData = data;
         localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data));
+        syncToSupabaseAsync(candidateId, 'data', data);
         return true;
     }
 

@@ -139,7 +139,9 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
 
          // Update candidate profile with passport info
          onUpdateProfile({
-            certifications: [...(candidate.certifications || []), result.txHash]
+            certifications: [...(candidate.certifications || []), result.txHash],
+            passportId: result.passportId,
+            passportTxHash: result.txHash
          });
       } catch (error) {
          toast.error("Failed to mint passport. Please try again.");
@@ -180,9 +182,9 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ candidat
             toast.error("Please upload a video file.");
             return;
          }
-         // Validate file size (max 10MB to avoid localStorage limits)
-         if (file.size > 10 * 1024 * 1024) {
-            toast.error("Video must be less than 10MB.");
+         // Validate file size (max 50MB)
+         if (file.size > 50 * 1024 * 1024) {
+            toast.error("Video must be less than 50MB.");
             return;
          }
 

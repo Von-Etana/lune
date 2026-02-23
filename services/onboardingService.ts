@@ -1,5 +1,7 @@
 // Onboarding Service - Manages first-time user experience and tour state
 
+import { supabase } from '../lib/supabase';
+
 const STORAGE_KEYS = {
     TOUR_COMPLETED: 'lune_tour_completed',
     TOUR_SKIPPED: 'lune_tour_skipped',
@@ -27,12 +29,72 @@ interface UserOnboardingState {
 
 class OnboardingService {
     private userId: string | null = null;
+    private initialized: boolean = false;
 
     /**
      * Initialize onboarding service for a user
      */
-    setUserId(userId: string): void {
+    async setUserId(userId: string): Promise<void> {
         this.userId = userId;
+        if (!this.initialized) {
+            await this.syncFromSupabase();
+            this.initialized = true;
+        }
+    }
+
+    private async syncFromSupabase() {
+        if (!this.userId) return;
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('user_preferences')
+                .eq('id', this.userId)
+                .single();
+
+            if (!error && data?.user_preferences) {
+                const prefs = data.user_preferences as any;
+                if (prefs.onboarding) {
+                    const o = prefs.onboarding;
+                    if (o.tourCompleted) localStorage.setItem(this.getKey(STORAGE_KEYS.TOUR_COMPLETED), 'true');
+                    if (o.tourSkipped) localStorage.setItem(this.getKey(STORAGE_KEYS.TOUR_SKIPPED), 'true');
+                    if (o.firstLogin) localStorage.setItem(this.getKey(STORAGE_KEYS.FIRST_LOGIN_DATE), o.firstLogin);
+                    if (o.progress) localStorage.setItem(this.getKey(STORAGE_KEYS.ONBOARDING_PROGRESS), JSON.stringify(o.progress));
+                    if (o.seenFeatures) localStorage.setItem(this.getKey(STORAGE_KEYS.FEATURE_HIGHLIGHTS_SEEN), JSON.stringify(o.seenFeatures));
+                    if (o.dismissedTips) localStorage.setItem(this.getKey(STORAGE_KEYS.TIPS_DISMISSED), JSON.stringify(o.dismissedTips));
+                }
+            }
+        } catch (err) {
+            console.error('Initial sync failed', err);
+        }
+    }
+
+    private async syncToSupabaseAsync() {
+        if (!this.userId) return;
+        try {
+            const state = {
+                tourCompleted: !!localStorage.getItem(this.getKey(STORAGE_KEYS.TOUR_COMPLETED)),
+                tourSkipped: !!localStorage.getItem(this.getKey(STORAGE_KEYS.TOUR_SKIPPED)),
+                firstLogin: localStorage.getItem(this.getKey(STORAGE_KEYS.FIRST_LOGIN_DATE)),
+                progress: this.getProgress(),
+                seenFeatures: this.getSeenFeatures(),
+                dismissedTips: this.getDismissedTips()
+            };
+
+            const { data, error } = await supabase.from('users')
+                .select('user_preferences')
+                .eq('id', this.userId)
+                .single();
+            if (error) return;
+
+            const prefs = data?.user_preferences || {};
+            (prefs as any).onboarding = state;
+
+            await supabase.from('users')
+                .update({ user_preferences: prefs })
+                .eq('id', this.userId);
+        } catch (e) {
+            console.error('Failed to sync onboarding', e);
+        }
     }
 
     /**
@@ -56,6 +118,7 @@ class OnboardingService {
     markFirstLogin(): void {
         if (!localStorage.getItem(this.getKey(STORAGE_KEYS.FIRST_LOGIN_DATE))) {
             localStorage.setItem(this.getKey(STORAGE_KEYS.FIRST_LOGIN_DATE), new Date().toISOString());
+            this.syncToSupabaseAsync();
         }
     }
 
@@ -74,6 +137,7 @@ class OnboardingService {
     completeTour(): void {
         localStorage.setItem(this.getKey(STORAGE_KEYS.TOUR_COMPLETED), 'true');
         this.updateProgress({ tourCompleted: true });
+        this.syncToSupabaseAsync();
     }
 
     /**
@@ -81,6 +145,7 @@ class OnboardingService {
      */
     skipTour(): void {
         localStorage.setItem(this.getKey(STORAGE_KEYS.TOUR_SKIPPED), 'true');
+        this.syncToSupabaseAsync();
     }
 
     /**
@@ -89,6 +154,7 @@ class OnboardingService {
     resetTour(): void {
         localStorage.removeItem(this.getKey(STORAGE_KEYS.TOUR_COMPLETED));
         localStorage.removeItem(this.getKey(STORAGE_KEYS.TOUR_SKIPPED));
+        this.syncToSupabaseAsync();
     }
 
     /**
@@ -115,6 +181,7 @@ class OnboardingService {
         const current = this.getProgress();
         const updated = { ...current, ...updates };
         localStorage.setItem(this.getKey(STORAGE_KEYS.ONBOARDING_PROGRESS), JSON.stringify(updated));
+        this.syncToSupabaseAsync();
     }
 
     /**
@@ -157,6 +224,7 @@ class OnboardingService {
         if (!seen.includes(featureId)) {
             seen.push(featureId);
             localStorage.setItem(this.getKey(STORAGE_KEYS.FEATURE_HIGHLIGHTS_SEEN), JSON.stringify(seen));
+            this.syncToSupabaseAsync();
         }
     }
 
@@ -184,6 +252,7 @@ class OnboardingService {
         if (!dismissed.includes(tipId)) {
             dismissed.push(tipId);
             localStorage.setItem(this.getKey(STORAGE_KEYS.TIPS_DISMISSED), JSON.stringify(dismissed));
+            this.syncToSupabaseAsync();
         }
     }
 
@@ -207,6 +276,7 @@ class OnboardingService {
         Object.values(STORAGE_KEYS).forEach(key => {
             localStorage.removeItem(this.getKey(key));
         });
+        this.syncToSupabaseAsync();
     }
 
     /**

@@ -249,7 +249,36 @@ const ACHIEVEMENTS: Omit<Achievement, 'progress' | 'unlocked'>[] = [
 // STORAGE
 // =====================================================
 
+import { supabase } from '../lib/supabase';
+
+let cachedGamificationData: Record<string, UserGamification> = {};
+
+export const initializeGamification = async (userId: string) => {
+    try {
+        const { data, error } = await supabase
+            .from('candidate_profiles')
+            .select('user_preferences')
+            .eq('user_id', userId)
+            .single();
+
+        if (!error && data?.user_preferences && (data.user_preferences as any).gamification) {
+            cachedGamificationData = (data.user_preferences as any).gamification;
+            // Backup to local storage
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedGamificationData));
+        } else {
+            // Fallback load
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                cachedGamificationData = JSON.parse(stored);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to init gamification:', err);
+    }
+};
+
 const getStoredData = (): Record<string, UserGamification> => {
+    if (Object.keys(cachedGamificationData).length > 0) return cachedGamificationData;
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
         return stored ? JSON.parse(stored) : {};
@@ -259,7 +288,31 @@ const getStoredData = (): Record<string, UserGamification> => {
 };
 
 const saveData = (data: Record<string, UserGamification>): void => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    cachedGamificationData = data;
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+        // Background sync to the first user in the dictionary 
+        // (usually there's only one user on the client anyway)
+        const userIds = Object.keys(data);
+        if (userIds.length > 0) {
+            const userId = userIds[0];
+            supabase.from('candidate_profiles')
+                .select('user_preferences')
+                .eq('user_id', userId)
+                .single()
+                .then(async ({ data: profData, error }) => {
+                    if (error) return;
+                    const prefs = profData?.user_preferences || {};
+                    (prefs as any).gamification = data;
+                    await supabase.from('candidate_profiles')
+                        .update({ user_preferences: prefs })
+                        .eq('user_id', userId);
+                });
+        }
+    } catch (error) {
+        console.error('Failed to save gamification data:', error);
+    }
 };
 
 // =====================================================

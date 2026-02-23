@@ -1,4 +1,61 @@
 import { Notification, VerificationEvent } from '../types';
+import { supabase } from '../lib/supabase';
+
+let cachedNotifications: Notification[] = [];
+let cachedVerificationEvents: VerificationEvent[] = [];
+let defaultUserId: string | null = null;
+
+export const initializeNotifications = async (userId: string) => {
+    defaultUserId = userId;
+    try {
+        const { data, error } = await supabase
+            .from('users') // Storing in users since candidate_profiles might not exist for employers right away
+            .select('user_preferences')
+            .eq('id', userId)
+            .single();
+
+        if (!error && data?.user_preferences) {
+            const prefs = data.user_preferences as any;
+            if (prefs.notifications) {
+                cachedNotifications = prefs.notifications;
+                localStorage.setItem('lune_notifications', JSON.stringify(cachedNotifications));
+            }
+            if (prefs.verification_events) {
+                cachedVerificationEvents = prefs.verification_events;
+                localStorage.setItem('lune_verification_events', JSON.stringify(cachedVerificationEvents));
+            }
+        } else {
+            // Fallback load
+            const storedNotifs = localStorage.getItem('lune_notifications');
+            if (storedNotifs) cachedNotifications = JSON.parse(storedNotifs);
+
+            const storedEvents = localStorage.getItem('lune_verification_events');
+            if (storedEvents) cachedVerificationEvents = JSON.parse(storedEvents);
+        }
+    } catch (err) {
+        console.error('Failed to init notifications:', err);
+    }
+};
+
+const syncToSupabaseAsync = async (section: 'notifications' | 'verification_events', payload: any) => {
+    if (!defaultUserId) return;
+    try {
+        const { data, error } = await supabase.from('users')
+            .select('user_preferences')
+            .eq('id', defaultUserId)
+            .single();
+        if (error) return;
+
+        const prefs = data?.user_preferences || {};
+        (prefs as any)[section] = payload;
+
+        await supabase.from('users')
+            .update({ user_preferences: prefs })
+            .eq('id', defaultUserId);
+    } catch (e) {
+        console.error('Failed to sync notifications', e);
+    }
+};
 
 class NotificationService {
     private storageKey = 'lune_notifications';
@@ -6,10 +63,7 @@ class NotificationService {
 
     // Get all notifications for a user
     getNotifications(userId: string): Notification[] {
-        const stored = localStorage.getItem(this.storageKey);
-        if (!stored) return [];
-
-        const all: Notification[] = JSON.parse(stored);
+        const all = this.getAllNotifications();
         return all.filter(n => n.userId === userId)
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
@@ -24,7 +78,9 @@ class NotificationService {
 
         const existing = this.getAllNotifications();
         existing.push(newNotification);
+        cachedNotifications = existing;
         localStorage.setItem(this.storageKey, JSON.stringify(existing));
+        syncToSupabaseAsync('notifications', existing);
 
         return newNotification;
     }
@@ -40,7 +96,9 @@ class NotificationService {
         // Store verification event
         const events = this.getVerificationEvents();
         events.push(verificationEvent);
+        cachedVerificationEvents = events;
         localStorage.setItem(this.eventsKey, JSON.stringify(events));
+        syncToSupabaseAsync('verification_events', events);
 
         // Create notification for candidate
         this.createNotification({
@@ -63,7 +121,9 @@ class NotificationService {
         const index = all.findIndex(n => n.id === notificationId);
         if (index !== -1) {
             all[index].read = true;
+            cachedNotifications = all;
             localStorage.setItem(this.storageKey, JSON.stringify(all));
+            syncToSupabaseAsync('notifications', all);
         }
     }
 
@@ -73,14 +133,18 @@ class NotificationService {
         all.forEach(n => {
             if (n.userId === userId) n.read = true;
         });
+        cachedNotifications = all;
         localStorage.setItem(this.storageKey, JSON.stringify(all));
+        syncToSupabaseAsync('notifications', all);
     }
 
     // Delete a notification
     deleteNotification(notificationId: string): void {
         const all = this.getAllNotifications();
         const filtered = all.filter(n => n.id !== notificationId);
+        cachedNotifications = filtered;
         localStorage.setItem(this.storageKey, JSON.stringify(filtered));
+        syncToSupabaseAsync('notifications', filtered);
     }
 
     // Get unread count
@@ -90,6 +154,7 @@ class NotificationService {
 
     // Get verification events (for analytics)
     getVerificationEvents(): VerificationEvent[] {
+        if (cachedVerificationEvents.length > 0) return cachedVerificationEvents;
         const stored = localStorage.getItem(this.eventsKey);
         return stored ? JSON.parse(stored) : [];
     }
@@ -102,6 +167,7 @@ class NotificationService {
     }
 
     private getAllNotifications(): Notification[] {
+        if (cachedNotifications.length > 0) return cachedNotifications;
         const stored = localStorage.getItem(this.storageKey);
         return stored ? JSON.parse(stored) : [];
     }

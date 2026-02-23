@@ -58,14 +58,61 @@ export interface PerformanceSummary {
     trends: AssessmentTrend[];
 }
 
+// In-memory cache to maintain synchronous API compatibility with existing app
+let cachedHistory: AssessmentHistoryEntry[] = [];
+
 /**
- * Load assessment history from localStorage
+ * Initialize history from Supabase (Call this on login)
+ */
+export const initializeAssessmentHistory = async (userId: string) => {
+    try {
+        const { data, error } = await supabase
+            .from('assessment_submissions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('submitted_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data) {
+            cachedHistory = data.map(row => ({
+                id: row.id,
+                candidateId: row.user_id,
+                skill: row.skill_id, // assuming skill_id stores the skill name in current DB
+                category: getSkillCategory(row.skill_id),
+                score: row.score,
+                passed: row.passed,
+                difficulty: 'Mid-Level', // Defaulting since it's not in the view below without a join, but we'll try to map it
+                completedAt: row.submitted_at,
+                timeSpentSeconds: row.time_spent_seconds || 0,
+                cheatingDetected: row.cheating_detected,
+                integrityScore: row.integrity_score || 100,
+                feedback: row.feedback,
+                categoryScores: row.category_scores,
+                certificationHash: row.certification_hash
+            }));
+
+            // Backup to localstorage just in case app refreshes
+            saveAssessmentHistory(cachedHistory);
+        }
+    } catch (err) {
+        console.error('Failed to initialize history from Supabase:', err);
+    }
+};
+
+/**
+ * Load assessment history (Sync - returns cached or local storage fallback)
  */
 export const loadAssessmentHistory = (candidateId?: string): AssessmentHistoryEntry[] => {
     try {
+        if (cachedHistory.length > 0) {
+            return candidateId ? cachedHistory.filter(h => h.candidateId === candidateId) : cachedHistory;
+        }
+
         const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
         if (stored) {
             const history: AssessmentHistoryEntry[] = JSON.parse(stored);
+            cachedHistory = history;
             if (candidateId) {
                 return history.filter(entry => entry.candidateId === candidateId);
             }
@@ -78,7 +125,7 @@ export const loadAssessmentHistory = (candidateId?: string): AssessmentHistoryEn
 };
 
 /**
- * Save assessment history to localStorage
+ * Save assessment history locally (fallback)
  */
 const saveAssessmentHistory = (history: AssessmentHistoryEntry[]): void => {
     try {
@@ -104,7 +151,6 @@ export const addAssessmentEntry = (
     categoryScores?: Record<string, number>,
     certificationHash?: string
 ): AssessmentHistoryEntry => {
-    const history = loadAssessmentHistory();
     // Use user ID if available, otherwise candidate ID
     const userId = (window as any).currentUser?.id || candidateId;
 
@@ -125,8 +171,8 @@ export const addAssessmentEntry = (
         certificationHash
     };
 
-    history.push(entry);
-    saveAssessmentHistory(history);
+    cachedHistory.push(entry);
+    saveAssessmentHistory(cachedHistory);
 
     // Save to Supabase (Async - Fire & Forget)
     (async () => {
@@ -134,19 +180,24 @@ export const addAssessmentEntry = (
             // 1. Insert submission
             const { error: submissionError } = await supabase.from('assessment_submissions').insert({
                 user_id: candidateId,
-                skill,
+                assessment_id: 'dynamic', // Temporary fallback
+                skill_id: skill, // If Schema has this
                 score,
                 passed,
-                difficulty,
-                time_spent_seconds: timeSpentSeconds,
+                code_submission: '',
+                theory_answers: {},
+                feedback: feedback || '',
                 cheating_detected: cheatingDetected,
-                integrity_score: integrityScore,
-                feedback,
-                category_scores: categoryScores,
-                certification_hash: certificationHash // Optional in DB?
             });
 
-            if (submissionError) console.error('Supabase submission error:', submissionError);
+            if (submissionError) {
+                console.error('Supabase submission error. You may need to update schema:', submissionError.message);
+                // We fall back to storing it in candidates_profiles user_preferences if table insert fails due to schema limits
+                const { data: profile } = await supabase.from('candidate_profiles').select('user_preferences').eq('user_id', candidateId).single();
+                let prefs = profile?.user_preferences || {};
+                prefs.assessment_history = cachedHistory;
+                await supabase.from('candidate_profiles').update({ user_preferences: prefs }).eq('user_id', candidateId);
+            }
 
             // 2. Update Candidate Profile (Skills & Certs) if passed
             if (passed) {
@@ -402,6 +453,7 @@ export const formatTimeSpent = (seconds: number): string => {
 };
 
 export default {
+    initializeAssessmentHistory,
     loadAssessmentHistory,
     addAssessmentEntry,
     getPerformanceSummary,

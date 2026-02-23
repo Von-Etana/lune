@@ -7,6 +7,8 @@
 // INTERFACES
 // =====================================================
 
+import { supabase } from '../lib/supabase';
+
 export interface CredentialWallet {
     walletId: string;
     did: string; // Decentralized Identifier
@@ -120,6 +122,53 @@ const KNOWN_ISSUERS: Record<string, IssuerInfo> = {
 // WALLET MANAGEMENT
 // =====================================================
 
+let cachedWallets: Record<string, CredentialWallet> = {};
+let defaultUserId: string | null = null;
+
+export const initializeWallet = async (userId: string) => {
+    defaultUserId = userId;
+    try {
+        const { data, error } = await supabase
+            .from('users') // Wallet sits on users table, independent of candidate profile
+            .select('user_preferences')
+            .eq('id', userId)
+            .single();
+
+        if (!error && data?.user_preferences) {
+            const prefs = data.user_preferences as any;
+            if (prefs.wallet) {
+                cachedWallets[userId] = prefs.wallet;
+                localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(prefs.wallet));
+            }
+        } else {
+            // Fallback load
+            const stored = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
+            if (stored) cachedWallets[userId] = JSON.parse(stored);
+        }
+    } catch (err) {
+        console.error('Failed to init wallet:', err);
+    }
+};
+
+const syncToSupabaseAsync = async (userId: string, wallet: CredentialWallet) => {
+    try {
+        const { data, error } = await supabase.from('users')
+            .select('user_preferences')
+            .eq('id', userId)
+            .single();
+        if (error) return;
+
+        const prefs = data?.user_preferences || {};
+        (prefs as any).wallet = wallet;
+
+        await supabase.from('users')
+            .update({ user_preferences: prefs })
+            .eq('id', userId);
+    } catch (e) {
+        console.error('Failed to sync wallet', e);
+    }
+};
+
 /**
  * Generate a new DID for the user
  */
@@ -167,9 +216,13 @@ export const createWallet = (userId: string): CredentialWallet => {
  * Get or create wallet for user
  */
 export const getWallet = (userId: string): CredentialWallet => {
+    if (cachedWallets[userId]) return cachedWallets[userId];
+
     const stored = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
     if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        cachedWallets[userId] = parsed;
+        return parsed;
     }
     return createWallet(userId);
 };
@@ -179,7 +232,9 @@ export const getWallet = (userId: string): CredentialWallet => {
  */
 const saveWallet = (wallet: CredentialWallet): void => {
     const userId = wallet.walletId.replace('wallet-', '');
+    cachedWallets[userId] = wallet;
     localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(wallet));
+    syncToSupabaseAsync(userId, wallet);
 };
 
 // =====================================================
@@ -355,7 +410,9 @@ export const verifyCredential = async (
  * Get all wallets (for search/verification)
  */
 const getAllWallets = (): CredentialWallet[] => {
-    const wallets: CredentialWallet[] = [];
+    const wallets = Object.values(cachedWallets);
+    if (wallets.length > 0) return wallets;
+
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key?.startsWith(STORAGE_KEY)) {

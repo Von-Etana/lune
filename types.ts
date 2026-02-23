@@ -42,6 +42,8 @@ export interface CandidateProfile {
   yearsOfExperience?: number; // Numeric
   preferredWorkMode?: 'Remote' | 'Hybrid' | 'On-site';
   verified?: boolean; // UI helper
+  passportId?: string;
+  passportTxHash?: string;
 }
 
 export interface Job {

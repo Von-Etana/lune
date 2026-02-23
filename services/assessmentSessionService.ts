@@ -30,10 +30,44 @@ const simpleHash = (str: string): string => {
     return hash.toString(36);
 };
 
+import { supabase } from '../lib/supabase';
+
+let cachedSessions: AssessmentSession[] = [];
+let defaultUserId: string | null = null;
+
 /**
- * Get all stored sessions from localStorage
+ * Initialize sessions from DB
+ */
+export const initializeSessions = async (userId: string) => {
+    defaultUserId = userId;
+    try {
+        const { data, error } = await supabase
+            .from('candidate_profiles')
+            .select('user_preferences')
+            .eq('user_id', userId)
+            .single();
+
+        if (!error && data?.user_preferences && (data.user_preferences as any).sessions) {
+            cachedSessions = (data.user_preferences as any).sessions;
+            // Also backup to local storage
+            localStorage.setItem(SESSIONS_KEY, JSON.stringify(cachedSessions));
+        } else {
+            // Fallback loading from local storage
+            const stored = localStorage.getItem(SESSIONS_KEY);
+            if (stored) {
+                cachedSessions = JSON.parse(stored);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to init sessions:', err);
+    }
+};
+
+/**
+ * Get all stored sessions from cache or localStorage
  */
 const getStoredSessions = (): AssessmentSession[] => {
+    if (cachedSessions.length > 0) return cachedSessions;
     try {
         const stored = localStorage.getItem(SESSIONS_KEY);
         return stored ? JSON.parse(stored) : [];
@@ -43,11 +77,32 @@ const getStoredSessions = (): AssessmentSession[] => {
 };
 
 /**
- * Save sessions to localStorage
+ * Save sessions to cache, localStorage, and Supabase
  */
 const saveSessions = (sessions: AssessmentSession[]): void => {
+    cachedSessions = sessions;
     try {
         localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+
+        // Background sync
+        if (defaultUserId) {
+            supabase.from('candidate_profiles')
+                .select('user_preferences')
+                .eq('user_id', defaultUserId)
+                .single()
+                .then(async ({ data, error }) => {
+                    if (error) {
+                        console.error('Failed to select preferences for session sync', error);
+                        return;
+                    }
+                    const prefs = data?.user_preferences || {};
+                    (prefs as any).sessions = sessions;
+                    const { error: updateError } = await supabase.from('candidate_profiles')
+                        .update({ user_preferences: prefs })
+                        .eq('user_id', defaultUserId);
+                    if (updateError) console.error('Failed to sync sessions', updateError);
+                });
+        }
     } catch (error) {
         console.error('Failed to save assessment sessions:', error);
     }
