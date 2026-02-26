@@ -198,19 +198,24 @@ export const addAssessmentEntry = (
                 await supabase.from('candidate_profiles').update({ user_preferences: prefs }).eq('user_id', candidateId);
             }
 
-            // 2. Update Candidate Profile (Skills & Certs) if passed
-            if (passed) {
-                // Fetch current profile first to append/merge
-                const { data: profile } = await supabase
-                    .from('candidate_profiles')
-                    .select('skills, certifications, verified')
-                    .eq('user_id', candidateId)
-                    .single();
+            // 2. Update Candidate Profile (Skills always updated, Certs & Verified only if passed)
+            // Fetch current profile first to append/merge
+            const { data: profile } = await supabase
+                .from('candidate_profiles')
+                .select('skills, certifications, verified')
+                .eq('user_id', candidateId)
+                .single();
 
-                if (profile) {
-                    const newSkills = { ...profile.skills, [skill]: score };
+            if (profile) {
+                // Update the skill score regardless of pass/fail
+                const newSkills = { ...profile.skills, [skill]: score };
 
-                    let newCerts = profile.certifications || [];
+                let newCerts = profile.certifications || [];
+                let isVerified = profile.verified;
+
+                // Only add certs and set as verified if the assessment was passed
+                if (passed) {
+                    isVerified = true;
                     if (certificationHash) {
                         // Store as JSON string if not already
                         const certEntry = certificationHash.startsWith('{')
@@ -226,18 +231,18 @@ export const addAssessmentEntry = (
                             newCerts = [...newCerts, certEntry];
                         }
                     }
-
-                    const { error: profileError } = await supabase
-                        .from('candidate_profiles')
-                        .update({
-                            skills: newSkills,
-                            certifications: newCerts,
-                            verified: true // Mark as verified since they passed
-                        })
-                        .eq('user_id', candidateId);
-
-                    if (profileError) console.error('Supabase profile update error:', profileError);
                 }
+
+                const { error: profileError } = await supabase
+                    .from('candidate_profiles')
+                    .update({
+                        skills: newSkills,
+                        certifications: newCerts,
+                        verified: isVerified
+                    })
+                    .eq('user_id', candidateId);
+
+                if (profileError) console.error('Supabase profile update error:', profileError);
             }
         } catch (err) {
             console.error('Failed to sync assessment to Supabase:', err);
