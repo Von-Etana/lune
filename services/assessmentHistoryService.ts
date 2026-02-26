@@ -181,7 +181,6 @@ export const addAssessmentEntry = (
             const { error: submissionError } = await supabase.from('assessment_submissions').insert({
                 user_id: candidateId,
                 assessment_id: 'dynamic', // Temporary fallback
-                skill_id: skill, // If Schema has this
                 score,
                 passed,
                 code_submission: '',

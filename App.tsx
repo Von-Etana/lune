@@ -89,10 +89,14 @@ const loadProfileFromStorage = (): CandidateProfile => {
   return DEFAULT_PROFILE;
 };
 
-// Save profile to localStorage
+// Save profile to localStorage (strip heavy base-64 fields)
 const saveProfileToStorage = (profile: CandidateProfile) => {
   try {
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    const minProfile = { ...profile };
+    // Prevent QuotaExceededError by removing potentially massive strings
+    delete minProfile.image;
+    delete minProfile.videoIntroUrl;
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(minProfile));
   } catch (error) {
     console.error('Error saving profile to storage:', error);
   }
